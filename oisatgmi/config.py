@@ -31,3 +31,5 @@ class ctm_model:
     tempeature_mid: np.ndarray
     delta_p: np.ndarray
     ctmtype: str
+    vcd: np.ndarray
+    time_at_sat: datetime.datetime

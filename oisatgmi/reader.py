@@ -98,7 +98,7 @@ def GMI_reader(product_dir: str, gases_to_be_saved: list, frequency_opt='3-hourl
             
 
         gmi_data = ctm_model(latitude, longitude, time, gas_profile,
-                             pressure_mid, tempeature_mid, delta_p, ctmtype)
+                             pressure_mid, tempeature_mid, delta_p, ctmtype, [], [])
         return gmi_data
 
     if frequency_opt == '3-hourly':
@@ -196,9 +196,8 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
        TROPOMI NO2 L2 reader
        Inputs:
              fname [str]: the name path of the L2 file
-             interpolation_flag [bool]: if the L2>L3 should be done
        Output:
-             tropomi_hcho [satellite]: a dataclass format (see config.py)
+             tropomi_no2 [satellite]: a dataclass format (see config.py)
     '''
     # say which file is being read
     print("Currently reading: " + fname.split('/')[-1])
@@ -251,10 +250,11 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
                               tm5_a[z+1]+tm5_b[z+1]*ps[:, :])
         if read_ak == True:
             SWs[z, :, :] = AKs[:, :, z]*amf_total
-    # remove infs in SWs
+    # remove bad SWs
     SWs[np.isinf(SWs)] = 0.0
     SWs[np.isnan(SWs)] = 0.0
     SWs[SWs>100.0] = 0.0
+    SWs[SWs<0] = 0.0
     # read the tropopause layer index
     trop_layer = _read_group_nc(
         fname, 1, 'PRODUCT', 'tm5_tropopause_layer_index')
