@@ -184,7 +184,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 2.0  # degree
+        grid_size = 1.0  # degree
         tropomi_hcho = interpolator(
             1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh = 0.5)
     # return
@@ -271,7 +271,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')                  
     # populate tropomi class
     tropomi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs)
+    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -292,12 +292,12 @@ def tropomi_reader(product_dir: str, satellite_product_name, ctm_models_coordina
     L2_files = sorted(glob.glob(product_dir + "/*.nc"))
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
-        outputs = Parallel(n_jobs=num_job)(delayed(tropomi_reader_no2)(
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_no2)(
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     elif satellite_product_name.split('_')[-1] == 'HCHO':
-        outputs = Parallel(n_jobs=num_job)(delayed(tropomi_reader_hcho)(
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_hcho)(
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
-    return outputs
+    return outputs_sat
 
 
 class readers(object):

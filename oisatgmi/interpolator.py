@@ -66,10 +66,12 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         dists, _ = tree.query(xi)
         Z = _interpolosis(tri, Z, ctm_longitude,
                           ctm_latitude, 1, dists, threshold)
-        return ctm_longitude, ctm_latitude, Z
+        upscaled_ctm_needed = False
+        return ctm_longitude, ctm_latitude, Z, upscaled_ctm_needed
     else:
-        # upscaling is not needed
-        return X, Y, Z
+        # upscaling is not needed but the model needs to match with sat
+        upscaled_ctm_needed = True
+        return X, Y, Z, upscaled_ctm_needed
 
 
 def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, ctm_models_coordinate: dict, flag_thresh=0.75) -> satellite:
@@ -124,16 +126,15 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
     dists, _ = tree.query(xi)
     # interpolate 2Ds fields
-
-    upscaled_X, upscaled_Y, vcd = _upscaler(lons_grid, lats_grid, _interpolosis(
+    upscaled_X, upscaled_Y, vcd, upscaled_ctm_needed = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.vcd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
 
-    _, _, scd = _upscaler(lons_grid, lats_grid, _interpolosis(
+    _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
     if np.size(sat_data.tropopause) != 1:
-        _, _, tropopause = _upscaler(lons_grid, lats_grid, _interpolosis(
+        _, _, tropopause, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
             tri, sat_data.tropopause*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
             ctm_models_coordinate, grid_size, threshold_ctm)
     else:
@@ -141,15 +142,16 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     latitude_center = upscaled_Y
     longitude_center = upscaled_X
 
-    _, _, uncertainty = np.sqrt(_upscaler(lons_grid, lats_grid, _interpolosis(
+    _, _, uncertainty, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.uncertainty**2*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-        ctm_models_coordinate, grid_size, threshold_ctm))
+        ctm_models_coordinate, grid_size, threshold_ctm)
+    uncertainty = np.sqrt(uncertainty)
     # interpolate 3Ds fields
     if np.size(sat_data.scattering_weights) != 1:
         scattering_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                                        np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-            _, _, scattering_weights[z, :, :] = _upscaler(lons_grid, lats_grid,
+            _, _, scattering_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                           _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
                                                                         * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
     else:
@@ -157,11 +159,11 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                              np.shape(upscaled_X)[1]))
     for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-        _, _,  pressure_mid[z, :, :] = _upscaler(lons_grid, lats_grid,
+        _, _,  pressure_mid[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                  _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
                                                                * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
                                                  ctm_models_coordinate, grid_size, threshold_ctm)
 
     interpolated_sat = satellite(vcd, scd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
-    ], [], uncertainty, [], pressure_mid, [], scattering_weights)
+    ], [], uncertainty, [], pressure_mid, [], scattering_weights, upscaled_ctm_needed)
     return interpolated_sat

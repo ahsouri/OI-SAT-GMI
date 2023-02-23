@@ -19,6 +19,7 @@ class satellite:
     pressure_mid: np.ndarray
     averaging_kernels: np.ndarray
     scattering_weights: np.ndarray
+    ctm_upscaled_needed: bool
 
 @dataclass
 class ctm_model:

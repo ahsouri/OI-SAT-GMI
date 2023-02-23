@@ -1,9 +1,10 @@
 import numpy as np
 from scipy import interpolate
 from pathlib import Path
-import datetime
-import glob
-
+from interpolator import _interpolosis
+from scipy.spatial import Delaunay
+from scipy.interpolate.interpnd import _ndim_coords_from_arrays
+from scipy.spatial import cKDTree
 
 def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
 
@@ -17,6 +18,12 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
             time_ctm.append(time_temp2)
     time_ctm = np.array(time_ctm)
+    # define the triangulation if we need to interpolate ctm_grid to sat_grid 
+    # because ctm_grid < sat_grid
+    points = np.zeros((np.size(ctm_data[0].latitude), 2))
+    points[:, 0] = ctm_data[0].longitude.flatten()
+    points[:, 1] = ctm_data[0].latitude.flatten()
+    tri = Delaunay(points)
     # loop over the satellite list
     counter = 0
     for L2_granule in sat_data:
@@ -36,12 +43,43 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
         )
         ctm_deltap = ctm_data[closest_index_day].delta_p[closest_index_hour, :, :, :].squeeze(
         )
-
+        # see if we need to upscale the ctm fields
+        if L2_granule.ctm_upscaled_needed == True:
+           tree = cKDTree(points)
+           grid = np.zeros((2, np.shape(L2_granule.latitude_center)[
+                            0], np.shape(L2_granule.latitude_center)[1]))
+           grid[0, :, :] = L2_granule.longitude_center
+           grid[1, :, :] = L2_granule.latitude_center
+           xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
+           dists, _ = tree.query(xi)
+           size_grid_sat_lon = np.abs(L2_granule.longitude_center[0, 0]-L2_granule.longitude_center[0, 1])
+           size_grid_sat_lat = np.abs(L2_granule.latitude_center[0, 0] - L2_granule.latitude_center[1, 0])
+           threshold_ctm = np.sqrt(size_grid_sat_lon**2 + size_grid_sat_lat**2)
+           ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
+                    np.shape(L2_granule.longitude_center)[0],np.shape(L2_granule.longitude_center)[1],
+                                    ))
+           ctm_profile_new = np.zeros((np.shape(ctm_mid_pressure)[0],
+                    np.shape(L2_granule.longitude_center)[0],np.shape(L2_granule.longitude_center)[1],
+                                    ))
+           ctm_deltap_new =np.zeros((np.shape(ctm_mid_pressure)[0],
+                    np.shape(L2_granule.longitude_center)[0],np.shape(L2_granule.longitude_center)[1],
+                                    ))
+           for z in range(0,np.shape(ctm_mid_pressure)[0]):
+               ctm_mid_pressure_new[z,:,:] = _interpolosis(tri, ctm_mid_pressure[z,:,:], L2_granule.longitude_center,
+                          L2_granule.latitude_center, 1, dists, threshold_ctm)
+               ctm_profile_new[z,:,:] = _interpolosis(tri, ctm_profile[z,:,:], L2_granule.longitude_center,
+                          L2_granule.latitude_center, 1, dists, threshold_ctm)
+               ctm_deltap_new[z,:,:] = _interpolosis(tri, ctm_deltap[z,:,:], L2_granule.longitude_center,
+                          L2_granule.latitude_center, 1, dists, threshold_ctm)                         
+        ctm_mid_pressure = ctm_mid_pressure_new
+        ctm_profile = ctm_profile_new
+        ctm_deltap = ctm_deltap_new
         # interpolate vertical grid
         Mair = 28.97e-3
         g = 9.80665
         N_A = 6.02214076e23
         new_amf = np.zeros_like(L2_granule.vcd)*np.nan
+        model_VCD = np.zeros_like(L2_granule.vcd)*np.nan
         for i in range(0, np.shape(L2_granule.vcd)[0]):
             for j in range(0, np.shape(L2_granule.vcd)[1]):
                 if np.isnan(L2_granule.vcd[i, j]):
@@ -64,9 +102,9 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 # calculate model SCD
                 model_SCD = np.nansum(interpolated_SW*ctm_partial_column)
                 # calculate model VCD
-                model_VCD = np.nansum(ctm_partial_column)
+                model_VCD[i,j] = np.nansum(ctm_partial_column)
                 # calculate model AMF
-                model_AMF = model_SCD/model_VCD
+                model_AMF = model_SCD/model_VCD[i,j]
                 # new amf
                 new_amf[i, j] = model_AMF
         # updating the sat data
