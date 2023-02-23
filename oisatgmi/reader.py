@@ -63,6 +63,7 @@ def GMI_reader(product_dir: str, gases_to_be_saved: list, frequency_opt='3-hourl
     # a nested function
     def gmi_reader_wrapper(fname_met: str, fname_gas: str, gasnames: list) -> ctm_model:
         # read the data
+        print("Currently reading: " + fname_met.split('/')[-1])
         ctmtype = "GMI"
         lon = _read_nc(fname_met, 'lon')
         lat = _read_nc(fname_met, 'lat')
@@ -84,14 +85,17 @@ def GMI_reader(product_dir: str, gases_to_be_saved: list, frequency_opt='3-hourl
             time.append(datetime.datetime(timebegin_date[0], timebegin_date[1], timebegin_date[2],
                                           timebegin_time[0], timebegin_time[1], timebegin_time[2]) +
                         datetime.timedelta(minutes=int(time_min_delta[t])))
-        delta_p = _read_nc(fname_met, 'DELP').astype('float32')
-        pressure_mid = _read_nc(fname_met, 'PL').astype('float32')
+        delta_p = _read_nc(fname_met, 'DELP').astype('float32')/100.0
+        delta_p = np.flip(delta_p,axis=1) # from bottom to top
+        pressure_mid = _read_nc(fname_met, 'PL').astype('float32')/100.0
+        pressure_mid = np.flip(pressure_mid,axis=1) # from bottom to top
         tempeature_mid = _read_nc(fname_met, 'T').astype('float32')
-
+        tempeature_mid = np.flip(tempeature_mid, axis=1) # from bottom to top
         gas_profile = {}
         for gas in gasnames:
-            gas_profile[gas] = _read_nc(
-                fname_gas, gas).astype('float32')
+            gas_profile[gas] = np.flip(_read_nc(
+                fname_gas, gas).astype('float32'), axis = 1)
+            
 
         gmi_data = ctm_model(latitude, longitude, time, gas_profile,
                              pressure_mid, tempeature_mid, delta_p, ctmtype)
@@ -145,8 +149,8 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
                          'formaldehyde_tropospheric_vertical_column')
     scd = _read_group_nc(fname, 1, 'PRODUCT', 'formaldehyde_tropospheric_vertical_column') *\
         amf_total
-    vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
-    scd = (scd*6.02214*1e19*1e-15).astype('float16')
+    vcd = (vcd*6.02214*1e19*1e-15).astype('float32')
+    scd = (scd*6.02214*1e19*1e-15).astype('float32')
     # read quality flag
     quality_flag = _read_group_nc(
         fname, 1, 'PRODUCT', 'qa_value').astype('float16')
@@ -179,9 +183,10 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs)
     # interpolation
     if (ctm_models_coordinate is not None):
-        grid_size = 0.25  # degree
+        print('Currently interpolating ...')
+        grid_size = 2.0  # degree
         tropomi_hcho = interpolator(
-            1, grid_size, tropomi_hcho, ctm_models_coordinate)
+            1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh = 0.5)
     # return
     return tropomi_hcho
 
@@ -218,20 +223,22 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
         fname, 1, 'PRODUCT', 'nitrogendioxide_tropospheric_column')
     scd = _read_group_nc(fname, 1, 'PRODUCT', 'nitrogendioxide_tropospheric_column') *\
         _read_group_nc(fname, 1, 'PRODUCT', 'air_mass_factor_troposphere')
-    vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
-    scd = (scd*6.02214*1e19*1e-15).astype('float16')
+    vcd = (vcd*6.02214*1e19*1e-15).astype('float32')
+    scd = (scd*6.02214*1e19*1e-15).astype('float32')
     # read quality flag
     quality_flag = _read_group_nc(
         fname, 1, 'PRODUCT', 'qa_value').astype('float16')
     # read pressures for SWs
-    tm5_a = _read_group_nc(fname, 1, 'PRODUCT', 'tm5_constant_a')
+    tm5_a = _read_group_nc(fname, 1, 'PRODUCT', 'tm5_constant_a')/100.0
     tm5_a = np.concatenate((tm5_a[:, 0], 0), axis=None)
     tm5_b = _read_group_nc(fname, 1, 'PRODUCT', 'tm5_constant_b')
     tm5_b = np.concatenate((tm5_b[:, 0], 0), axis=None)
+
+
     ps = _read_group_nc(fname, 3, [
-                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float16')
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')/100.0
     p_mid = np.zeros(
-        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
     if read_ak == True:
         SWs = np.zeros(
             (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
@@ -241,9 +248,13 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
         SWs = np.empty((1))
     for z in range(0, 34):
         p_mid[z, :, :] = 0.5*(tm5_a[z]+tm5_b[z]*ps[:, :] +
-                              tm5_a[z+1]+tm5_b[z+1]*ps[:, :])/100.0
+                              tm5_a[z+1]+tm5_b[z+1]*ps[:, :])
         if read_ak == True:
             SWs[z, :, :] = AKs[:, :, z]*amf_total
+    # remove infs in SWs
+    SWs[np.isinf(SWs)] = 0.0
+    SWs[np.isnan(SWs)] = 0.0
+    SWs[SWs>100.0] = 0.0
     # read the tropopause layer index
     trop_layer = _read_group_nc(
         fname, 1, 'PRODUCT', 'tm5_tropopause_layer_index')
@@ -263,9 +274,10 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs)
     # interpolation
     if (ctm_models_coordinate is not None):
-        grid_size = 0.25  # degree
+        print('Currently interpolating ...')
+        grid_size = 2.0 # degree
         tropomi_no2 = interpolator(
-            1, grid_size, tropomi_no2, ctm_models_coordinate)
+            1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh = 0.75)
     # return
     return tropomi_no2
 
@@ -337,19 +349,19 @@ class readers(object):
             self.ctm_data = GMI_reader(self.ctm_product_dir.as_posix(), gases,
                                        frequency_opt=frequency_opt, num_job=num_job)
 
-
 # testing
 if __name__ == "__main__":
 
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
-    reader_obj.read_ctm_data(['HCHO'], frequency_opt='3-hourly')
+    reader_obj.read_ctm_data(['NO2'], frequency_opt='3-hourly')
     reader_obj.add_satellite_data(
-        'TROPOMI_HCHO', Path('download_bucket/hcho/'))
-    reader_obj.read_satellite_data(read_ak=False, num_job=1)
+        'TROPOMI_NO2', Path('download_bucket/trop_no2/subset'))
+    reader_obj.read_satellite_data(read_ak=True, num_job=1)
 
-    latitude = reader_obj.ctm_data[0].latitude
-    longitude = reader_obj.ctm_data[0].longitude
+
+    latitude = reader_obj.tropomi_data[0].latitude_center
+    longitude = reader_obj.tropomi_data[0].longitude_center
 
     output = np.zeros((np.shape(latitude)[0], np.shape(
         latitude)[1], len(reader_obj.tropomi_data)))

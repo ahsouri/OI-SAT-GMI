@@ -4,7 +4,6 @@ from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from test_plotter import test_plotter
 from scipy import signal
-import copy
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
 
@@ -73,7 +72,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         return X, Y, Z
 
 
-def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, ctm_models_coordinate: dict) -> satellite:
+def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, ctm_models_coordinate: dict, flag_thresh=0.75) -> satellite:
     '''
         The interpolator function
         Input:
@@ -85,6 +84,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
             grid_size [float]: the size of grids defined by the user
             sat_data  [satellite]: a dataclass for satellite data
             ctm_models_coordinate [dic]: a dictionary containing lat and lon of the model
+            flag_thresh [float]: the quality flag threshold
     '''
 
     # creating the delaunay triangulation on satellite coordinates
@@ -98,7 +98,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     sat_center_lat = np.nanmean(sat_data.latitude_corner, axis=2).squeeze()
     sat_center_lon = np.nanmean(sat_data.longitude_corner, axis=2).squeeze()
     # mask bad data
-    mask = sat_data.quality_flag <= 0.75
+    mask = sat_data.quality_flag > flag_thresh
     mask = np.multiply(mask, 1.0).squeeze()
     mask[mask == 0] = np.nan
     # define the triangulation
@@ -133,11 +133,11 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
         tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
     if np.size(sat_data.tropopause) != 1:
-       _, _, tropopause = _upscaler(lons_grid, lats_grid, _interpolosis(
-           tri, sat_data.tropopause*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-           ctm_models_coordinate, grid_size, threshold_ctm)
+        _, _, tropopause = _upscaler(lons_grid, lats_grid, _interpolosis(
+            tri, sat_data.tropopause*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+            ctm_models_coordinate, grid_size, threshold_ctm)
     else:
-       tropopause = np.empty((1))
+        tropopause = np.empty((1))
     latitude_center = upscaled_Y
     longitude_center = upscaled_X
 
@@ -151,16 +151,16 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
             _, _, scattering_weights[z, :, :] = _upscaler(lons_grid, lats_grid,
                                                           _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
-                                                                        * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size)
+                                                                        * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
     else:
         scattering_weights = []
     pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                              np.shape(upscaled_X)[1]))
-    #for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-    #    _, _,  pressure_mid[z, :, :] = _upscaler(lons_grid, lats_grid,
-    #                                                             _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
-    #                                                                           * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-    #                                                             ctm_models_coordinate, grid_size, threshold_ctm)
+    for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+        _, _,  pressure_mid[z, :, :] = _upscaler(lons_grid, lats_grid,
+                                                 _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
+                                                               * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+                                                 ctm_models_coordinate, grid_size, threshold_ctm)
 
     interpolated_sat = satellite(vcd, scd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
     ], [], uncertainty, [], pressure_mid, [], scattering_weights)
