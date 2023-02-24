@@ -11,6 +11,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
     print('AMF Recal begins...')
     # list the time in ctm_data
     time_ctm = []
+    time_ctm_datetype = []
     for ctm_granule in ctm_data:
         time_temp = ctm_granule.time
         for n in range(len(time_temp)):
@@ -18,6 +19,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 time_temp[n].day + time_temp[n].hour/24.0 + \
                 time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
             time_ctm.append(time_temp2)
+        time_ctm_datetype.append(ctm_granule.time)
     time_ctm = np.array(time_ctm)
     # define the triangulation if we need to interpolate ctm_grid to sat_grid
     # because ctm_grid < sat_grid
@@ -37,6 +39,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
         # find the closest hour (this only works for 3-hourly frequency)
         closest_index_day = int(np.floor(closest_index/8.0))
         closest_index_hour = int(closest_index % 8)
+        print("the closest GMI file used for the L2 at " + str(L2_granule.time) + " is " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
         # take the profile and pressure from the right ctm data
         ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )

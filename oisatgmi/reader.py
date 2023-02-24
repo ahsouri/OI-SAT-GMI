@@ -261,10 +261,12 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     tropopause = np.zeros_like(trop_layer).astype('float16')
     for i in range(0, np.shape(trop_layer)[0]):
         for j in range(0, np.shape(trop_layer)[1]):
-            if trop_layer[i, j] > 0:
+            if (trop_layer[i, j] > 0 and trop_layer[i, j]<34):
                 tropopause[i, j] = p_mid[trop_layer[i, j], i, j]
             else:
                 tropopause[i, j] = np.nan
+    # remove bad tropoapuse
+
     # read the precision
     uncertainty = _read_group_nc(fname, 1, 'PRODUCT',
                                  'nitrogendioxide_tropospheric_column_precision')
@@ -275,7 +277,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 2.0 # degree
+        grid_size = 2.5 # degree
         tropomi_no2 = interpolator(
             1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh = 0.75)
     # return
