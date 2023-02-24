@@ -52,7 +52,7 @@ class downloader(object):
         '''
             download the tropomi data
             Inputs:
-                product_tag [int]: 1 -> NO2
+                product_tag [str]: 1 -> NO2
                                2 -> HCHO
                                3 -> CH4
                                4 -> CO
@@ -62,13 +62,13 @@ class downloader(object):
                 password [str]: the password to log on s5phub 
         '''
         # define product string
-        if product_tag == 1:
+        if product_tag == 'NO2':
             product_name = "%5F%5FNO2%5F%5F%5F"
-        if product_tag == 2:
+        if product_tag == 'HCHO':
             product_name = "%5F%5FHCHO%5F%5F"
-        if product_tag == 3:
+        if product_tag == 'CH4':
             product_name = "%5F%5FCH4%5F%5F%5F"
-        if product_tag == 4:
+        if product_tag == 'CO':
             product_name = "%5F%5FCO%5F%5F%5F%5F"
         # loop over the pages
         for page in range(0, maxpage):
@@ -119,12 +119,12 @@ class downloader(object):
                         os.makedirs(output_fld.as_posix())
                     os.system(cmd)
 
-    def download_omi_l2(self, product_tag: int, output_fld: Path, product_name=None, username=None, password=None):
+    def download_omi_l2(self, product_tag: str, output_fld: Path, product_name=None, username=None, password=None):
         '''
             download the omi data
             Inputs:
-                product_tag [int]: 1 -> NO2
-                                   2 -> HCHO (not implemented waiting for the newest version)
+                product_tag [str]: NO2
+                                   HCHO (not implemented waiting for the newest version)
                 output_fld [Path]: a pathlib object describing the output folder
                 product_name [str] (optional): a product name to overwrite product_tag default values
                 username [str] (optional): the username to log on nasa gesdisc
@@ -148,10 +148,10 @@ class downloader(object):
         # Set the URL for the GES DISC API endpoint for dataset searches
         svcurl = 'https://disc.gsfc.nasa.gov/service/subset/jsonwsp'
         # the product target
-        if product_tag == 1:
+        if product_tag == 'NO2':
             product = 'OMI_MINDS_NO2_1.1'
         elif product_tag == 2:
-            product = 'OMIHCHO'
+            product = 'HCHO'
         if (product_name is not None):
             prouct = product_name
         # Set up the JSON WSP request for API method: subset
@@ -209,5 +209,5 @@ class downloader(object):
 if __name__ == "__main__":
 
     dl_obj = downloader(37, 40, -79, -73.97, '2019-05-01', '2019-06-01')
-    dl_obj.download_tropomi_l2(1, Path('download_bucket/no2/'))
+    dl_obj.download_tropomi_l2('NO2', Path('download_bucket/no2/'))
     #dl_obj.download_omi_l2(1, Path('download_bucket/omi_no2/'))

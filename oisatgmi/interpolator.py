@@ -57,6 +57,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         points[:, 0] = X.flatten()
         points[:, 1] = Y.flatten()
         tri = Delaunay(points)
+        # remove to far estimates
         tree = cKDTree(points)
         grid = np.zeros((2, np.shape(ctm_latitude)[
                         0], np.shape(ctm_latitude)[1]))
@@ -64,6 +65,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         grid[1, :, :] = ctm_latitude
         xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
         dists, _ = tree.query(xi)
+        # interpolate
         Z = _interpolosis(tri, Z, ctm_longitude,
                           ctm_latitude, 1, dists, threshold)
         upscaled_ctm_needed = False
@@ -118,7 +120,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     lon_grid = np.arange(lon_ctm_min-dx, lon_ctm_max+dx, grid_size)
     lat_grid = np.arange(lat_ctm_min-dx, lat_ctm_max+dx, grid_size)
     lons_grid, lats_grid = np.meshgrid(lon_grid, lat_grid)
-
+    # calculate distance to remove too-far estimates
     tree = cKDTree(points)
     grid = np.zeros((2, np.shape(lons_grid)[0], np.shape(lons_grid)[1]))
     grid[0, :, :] = lons_grid
@@ -129,7 +131,6 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     upscaled_X, upscaled_Y, vcd, upscaled_ctm_needed = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.vcd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
-
     _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)

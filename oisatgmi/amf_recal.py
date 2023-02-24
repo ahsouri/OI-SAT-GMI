@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import interpolate
-from pathlib import Path
 from interpolator import _interpolosis
 from scipy.spatial import Delaunay
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
