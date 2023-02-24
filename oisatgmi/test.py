@@ -3,16 +3,12 @@ from pathlib import Path
 import numpy as np
 from scipy.io import savemat
 
+
 oisatgmi_obj = oisatgmi()
-oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), ['NO2'], '3-hourly', 'TROPOMI_NO2',
-                       Path('download_bucket/trop_no2/subset'))
-
-
-
+oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/subset'), ['NO2'], '3-hourly', 'TROPOMI_NO2',
+                       Path('download_bucket/no2/subset'),'201905')
 oisatgmi_obj.recal_amf()
-oisatgmi_obj.average('2020-06-01','2020-07-01','monthly')
-
-
+oisatgmi_obj.average('2019-05-01','2019-06-01')
 
 exit()
 latitude = oisatgmi_obj.reader_obj.tropomi_data[0].latitude_center

@@ -2,6 +2,7 @@ import numpy as np
 from pathlib import Path
 import datetime
 import glob
+import os
 from joblib import Parallel, delayed
 from netCDF4 import Dataset
 from config import satellite, ctm_model
@@ -47,12 +48,12 @@ def _read_group_nc(filename, num_groups, group, var):
     return np.squeeze(out)
 
 
-def GMI_reader(product_dir: str, YYYYMM: int, gases_to_be_saved: list, frequency_opt='3-hourly', num_job=1) -> ctm_model:
+def GMI_reader(product_dir: str, YYYYMM: str, gases_to_be_saved: list, frequency_opt='3-hourly', num_job=1) -> ctm_model:
     '''
        GMI reader
        Inputs:
              product_dir [str]: the folder containing the GMI data
-             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              gases_to_be_saved [list]: name of gases to be loaded. e.g., ['NO2']
              frequency_opt: the frequency of data
                         1 -> hourly 
@@ -107,7 +108,7 @@ def GMI_reader(product_dir: str, YYYYMM: int, gases_to_be_saved: list, frequency
         tavg3_3d_met_files = sorted(
             glob.glob(product_dir + "/*tavg3_3d_met_Nv*" + str(YYYYMM) + "*.nc4"))
         tavg3_3d_gas_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_tac_Nv*" + str(YYYYMM) + ".nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_tac_Nv*" + str(YYYYMM) + "*.nc4"))
         if len(tavg3_3d_gas_files) != len(tavg3_3d_met_files):
             raise Exception(
                 "the data are not consistent")
@@ -290,7 +291,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     return tropomi_no2
 
 
-def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: int, read_ak=True, num_job=1):
+def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, read_ak=True, num_job=1):
     '''
         reading tropomi data
              product_dir [str]: the folder containing the tropomi data
@@ -346,11 +347,11 @@ class readers(object):
         self.ctm_product_dir = product_dir
         self.ctm_product = product_name
 
-    def read_satellite_data(self, YYYYMM, read_ak=True, num_job=1):
+    def read_satellite_data(self, YYYYMM: str, read_ak=True, num_job=1):
         '''
             read L2 satellite data
             Input:
-             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
              num_job [int]: the number of jobs for parallel computation
         '''
@@ -362,11 +363,11 @@ class readers(object):
                                            self.satellite_product_name, ctm_models_coordinate,
                                            YYYYMM,  read_ak=read_ak, num_job=num_job)
 
-    def read_ctm_data(self, YYYYMM, gases: list, frequency_opt: str, num_job=1):
+    def read_ctm_data(self, YYYYMM: str, gases: list, frequency_opt: str, num_job=1):
         '''
             read ctm data
             Input:
-             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              gases_to_be_saved [list]: name of gases to be loaded. e.g., ['NO2']
              frequency_opt: the frequency of data
                         1 -> hourly 
@@ -381,12 +382,11 @@ class readers(object):
 
 # testing
 if __name__ == "__main__":
-
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data('201905', ['NO2'], frequency_opt='3-hourly')
     reader_obj.add_satellite_data(
-        'TROPOMI_NO2', Path('download_bucket/trop_no2/subset'))
+        'TROPOMI_NO2', Path('download_bucket/no2/'))
     reader_obj.read_satellite_data('201905', read_ak=True, num_job=1)
 
     latitude = reader_obj.tropomi_data[0].latitude_center
