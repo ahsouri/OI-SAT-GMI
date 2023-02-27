@@ -25,8 +25,8 @@ class oisatgmi(object):
 
     def recal_amf(self):
 
-        self.reader_obj.tropomi_data = amf_recal(
-            self.reader_obj.ctm_data, self.reader_obj.tropomi_data, self.gasname)
+        self.reader_obj.sat_data = amf_recal(
+            self.reader_obj.ctm_data, self.reader_obj.sat_data, self.gasname)
 
     def average(self, startdate: str, enddate: str):
         '''

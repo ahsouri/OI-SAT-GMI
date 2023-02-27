@@ -2,23 +2,29 @@ import numpy as np
 from config import satellite
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
+from scipy.interpolate import RBFInterpolator
 from test_plotter import test_plotter
 from scipy import signal
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
 
 
-def _interpolosis(tri: Delaunay, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
+def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
     # to make the interpolator() shorter
     if interpolator_type == 1:
-        interpolator = LinearNDInterpolator(tri, (Z).flatten())
+        interpolator = LinearNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
         ZZ[dists > threshold] = np.nan
     elif interpolator_type == 2:
-        interpolator = NearestNDInterpolator(tri, (Z).flatten())
-        ZZ = interpolator((X, Y))
+        interpolator = NearestNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
         ZZ[dists > threshold] = np.nan
+    elif interpolator_type ==3:
+         interpolator = RBFInterpolator(interpol_func, (Z).flatten(),neighbors=5)
+         XX = np.stack([X.ravel(), Y.ravel()], -1) 
+         ZZ = interpolator(XX)
+         ZZ = ZZ.reshape(np.shape(X))
+         ZZ[dists > threshold] = np.nan
     else:
         raise Exception(
             "other type of interpolation methods has not been implemented yet")
@@ -83,7 +89,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
             interpolator_type [int]: an index specifying the type of interpolator
                     1 > Bilinear interpolation (recommended)
                     2 > Nearest neighbour
-                    3 > Cressman (not implemented yet)
+                    3 > RBF (thin_plate_spline)
                     4 > Poppy (not implemented yet)
             grid_size [float]: the size of grids defined by the user
             sat_data  [satellite]: a dataclass for satellite data
@@ -127,13 +133,20 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     grid[1, :, :] = lats_grid
     xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
     dists, _ = tree.query(xi)
+
+    # if RBF is chosen
+    if interpolator_type == 3:
+        tri = points
     # interpolate 2Ds fields
+    print('....................... vcd')
     upscaled_X, upscaled_Y, vcd, upscaled_ctm_needed = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.vcd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
+    print('....................... scd')
     _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
+    print('....................... tropopause')
     if np.size(sat_data.tropopause) != 1:
         _, _, tropopause, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
             tri, sat_data.tropopause*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
@@ -142,7 +155,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
         tropopause = np.empty((1))
     latitude_center = upscaled_Y
     longitude_center = upscaled_X
-
+    print('....................... error')
     _, _, uncertainty, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.uncertainty**2*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
@@ -152,6 +165,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
         scattering_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                                        np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+            print('....................... SWs [' + str(z) + '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
             _, _, scattering_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                           _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
                                                                         * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
@@ -160,6 +174,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                              np.shape(upscaled_X)[1]))
     for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+        print('....................... pmids [' + str(z) + '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
         _, _,  pressure_mid[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                  _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
                                                                * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),

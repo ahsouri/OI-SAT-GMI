@@ -32,8 +32,8 @@ def averaging(startdate: str, enddate: str, reader_obj):
     list_months = np.array(list_months)
     list_years = np.array(list_years)
 
-    sat_averaged_vcd = np.zeros((np.shape(reader_obj.tropomi_data[0].latitude_center)[0],
-                                 np.shape(reader_obj.tropomi_data[0].latitude_center)[
+    sat_averaged_vcd = np.zeros((np.shape(reader_obj.sat_data[0].latitude_center)[0],
+                                 np.shape(reader_obj.sat_data[0].latitude_center)[
         1],
         len(range(np.min(list_months),
                   np.max(list_months)+1)),
@@ -47,7 +47,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
             sat_chosen_vcd = []
             sat_chosen_error = []
             ctm_chosen_vcd = []
-            for sat_data in reader_obj.tropomi_data:
+            for sat_data in reader_obj.sat_data:
                 time_sat = sat_data.time
                 # see if it falls
                 if ((time_sat.year == year) and (time_sat.month == month)):

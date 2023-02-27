@@ -216,7 +216,6 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
         np.nanmean(np.array(_read_group_nc(
             fname, 1, 'PRODUCT', 'delta_time')), axis=0)/1000.0
     time = np.squeeze(time)
-    tropomi_no2 = satellite
     time = datetime.datetime(
         2010, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(tropomi_no2.time),"%Y-%m-%d %H:%M:%S"))
@@ -290,6 +289,85 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     # return
     return tropomi_no2
 
+def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite:
+    '''
+       OMI NO2 L2 reader
+       Inputs:
+             fname [str]: the name path of the L2 file
+             ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
+       Output:
+             omi_no2 [satellite]: a dataclass format (see config.py)
+    '''
+    # say which file is being read
+    print("Currently reading: " + fname.split('/')[-1])
+    # read time
+    time = _read_group_nc(fname, 1, 'GEOLOCATION_DATA', 'Time')
+    time = np.squeeze(np.nanmean(time))
+    time = datetime.datetime(
+        1993, 1, 1) + datetime.timedelta(seconds=int(time))
+    #print(datetime.datetime.strptime(str(time),"%Y-%m-%d %H:%M:%S"))
+    # read lat/lon at corners
+    latitude_corner = _read_group_nc(fname, 1, 'GEOLOCATION_DATA','FoV75CornerLatitude').astype('float32')
+    longitude_corner = _read_group_nc(fname, 1, 'GEOLOCATION_DATA','FoV75CornerLongitude').astype('float32')
+    # read trop no2
+    vcd = _read_group_nc(
+        fname, 1, 'SCIENCE_DATA', 'ColumnAmountNO2Trop')
+    scd = _read_group_nc(fname, 1, 'SCIENCE_DATA', 'AmfTrop') *\
+        _read_group_nc(fname, 1, 'SCIENCE_DATA', 'ColumnAmountNO2Trop')
+    vcd = (vcd*1e-15).astype('float16')
+    scd = (scd*1e-15).astype('float16')
+    # read quality flag
+    quality_flag_temp = _read_group_nc(
+        fname, 1, 'SCIENCE_DATA', 'VcdQualityFlags').astype('float16')
+    quality_flag = np.zeros_like(quality_flag_temp)
+    for i in range(0,np.shape(quality_flag)[0]):
+        for j in range(0,np.shape(quality_flag)[1]):
+            flag = '{0:08b}'.format(int(quality_flag_temp[i,j]))
+            if flag[-1] == '0':
+               quality_flag[i,j] = 0.0
+            if flag[-1] == '1':
+                if flag[-2] == '0':
+                   quality_flag[i,j] = 0.0
+            else:
+                   quality_flag[i,j] = 100.0
+            
+    # read pressures for SWs
+    ps = _read_group_nc(fname, 1, 'GEOLOCATION_DATA','ScatteringWeightPressure')
+    p_mid = np.zeros(
+        (35, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')    
+    if read_ak == True:
+        SWs = _read_group_nc(fname, 1, 'SCIENCE_DATA',
+                             'ScatteringWeight').astype('float16')
+        SWs = SWs.transpose((2,0,1))
+    else:
+        SWs = np.empty((1))
+    for z in range(0, 35):
+        p_mid[z, :, :] = ps[z]
+    # remove bad SWs
+    SWs[np.isinf(SWs)] = 0.0
+    SWs[np.isnan(SWs)] = 0.0
+    SWs[SWs > 100.0] = 0.0
+    SWs[SWs < 0] = 0.0
+    # read the tropopause layer index
+    tropopause = _read_group_nc(
+        fname, 1, 'ANCILLARY_DATA', 'TropopausePressure').astype('float16')
+    # read the precision
+    uncertainty = _read_group_nc(fname, 1, 'SCIENCE_DATA',
+                                 'ColumnAmountNO2TropStd')
+    uncertainty = (uncertainty*1e-15).astype('float16')
+    # populate tropomi class
+    omi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
+    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [])
+    # interpolation
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 0.25  # degree
+        omi_no2 = interpolator(
+            1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
+    # return
+    return omi_no2
+
 
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, read_ak=True, num_job=1):
     '''
@@ -316,6 +394,31 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
 
+def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, read_ak=True, num_job=1):
+    '''
+        reading omi data
+             product_dir [str]: the folder containing the tropomi data
+             satellite_product_name [str]: so far we support:
+                                         "NO2"
+                                         "HCHO"
+             ctm_models_coordinate [dict]: the ctm coordinates
+             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
+             num_job [int]: the number of jobs for parallel computation
+        Output [tropomi]: the tropomi @dataclass
+    '''
+
+    # find L2 files first
+    print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc")
+    L2_files = sorted(glob.glob(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc"))
+    # read the files in parallel
+    if satellite_product_name.split('_')[-1] == 'NO2':
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_no2)(
+            L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+    elif satellite_product_name.split('_')[-1] == 'HCHO':
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_hcho)(
+            L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+    return outputs_sat
 
 class readers(object):
     def __init__(self) -> None:
@@ -351,18 +454,27 @@ class readers(object):
         '''
             read L2 satellite data
             Input:
+             satellite [str]: acceptable satellites at this points: 
+                              'OMI'
+                              'TROPOMI'
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
              num_job [int]: the number of jobs for parallel computation
         '''
-
+        satellite = self.satellite_product_name.split('_')[0]
         ctm_models_coordinate = {}
         ctm_models_coordinate["Latitude"] = self.ctm_data[0].latitude
         ctm_models_coordinate["Longitude"] = self.ctm_data[0].longitude
-        self.tropomi_data = tropomi_reader(self.satellite_product_dir.as_posix(),
+        if satellite == 'TROPOMI':
+           self.sat_data = tropomi_reader(self.satellite_product_dir.as_posix(),
                                            self.satellite_product_name, ctm_models_coordinate,
                                            YYYYMM,  read_ak=read_ak, num_job=num_job)
-
+        elif satellite == 'OMI':
+           self.sat_data = omi_reader(self.satellite_product_dir.as_posix(),
+                                           self.satellite_product_name, ctm_models_coordinate,
+                                           YYYYMM,  read_ak=read_ak, num_job=num_job)    
+        else:
+            raise Exception("the satellite is not supported, come tomorrow!")      
     def read_ctm_data(self, YYYYMM: str, gases: list, frequency_opt: str, num_job=1):
         '''
             read ctm data
@@ -386,22 +498,24 @@ if __name__ == "__main__":
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/subset/'))
     reader_obj.read_ctm_data('201905', ['NO2'], frequency_opt='3-hourly')
     reader_obj.add_satellite_data(
-        'TROPOMI_NO2', Path('download_bucket/no2/subset/'))
+        'OMI_NO2', Path('download_bucket/omi_no2/subset/'))
     reader_obj.read_satellite_data('201905', read_ak=True, num_job=1)
 
-    latitude = reader_obj.tropomi_data[0].latitude_center
-    longitude = reader_obj.tropomi_data[0].longitude_center
+    latitude = reader_obj.sat_data[0].latitude_center
+    longitude = reader_obj.sat_data[0].longitude_center
 
     output = np.zeros((np.shape(latitude)[0], np.shape(
-        latitude)[1], len(reader_obj.tropomi_data)))
+        latitude)[1], len(reader_obj.sat_data)))
     counter = -1
-    for trop in reader_obj.tropomi_data:
+    for trop in reader_obj.sat_data:
         counter = counter + 1
         output[:, :, counter] = trop.vcd
+        output2 = trop.quality_flag
 
-    output[output <= 0.0] = np.nan
+    #output[output <= 0.0] = np.nan
     moutput = {}
     moutput["vcds"] = output
+    moutput["quality_flag"] = output2   
     moutput["lat"] = latitude
     moutput["lon"] = longitude
     savemat("vcds.mat", moutput)
