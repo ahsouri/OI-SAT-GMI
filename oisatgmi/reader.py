@@ -178,10 +178,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
         if read_ak == True:
             SWs[z, :, :] = AKs[:, :, z]*amf_total
     # remove bad SWs
-    SWs[np.isinf(SWs)] = 0.0
-    SWs[np.isnan(SWs)] = 0.0
-    SWs[SWs > 100.0] = 0.0
-    SWs[SWs < 0] = 0.0
+    SWs[np.isinf(SWs) or np.isnan(SWs) or SWs>100.0 or SWs<0.0] = 0.0
     # read the precision
     uncertainty = _read_group_nc(fname, 1, 'PRODUCT',
                                  'formaldehyde_tropospheric_vertical_column_precision')
@@ -258,10 +255,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
         if read_ak == True:
             SWs[z, :, :] = AKs[:, :, z]*amf_total
     # remove bad SWs
-    SWs[np.isinf(SWs)] = 0.0
-    SWs[np.isnan(SWs)] = 0.0
-    SWs[SWs > 100.0] = 0.0
-    SWs[SWs < 0] = 0.0
+    SWs[np.isinf(SWs) or np.isnan(SWs) or SWs>100.0 or SWs<0.0] = 0.0
     # read the tropopause layer index
     trop_layer = _read_group_nc(
         fname, 1, 'PRODUCT', 'tm5_tropopause_layer_index')
@@ -348,10 +342,7 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
     for z in range(0, 35):
         p_mid[z, :, :] = ps[z]
     # remove bad SWs
-    SWs[np.isinf(SWs)] = 0.0
-    SWs[np.isnan(SWs)] = 0.0
-    SWs[SWs > 100.0] = 0.0
-    SWs[SWs < 0] = 0.0
+    SWs[np.isinf(SWs) or np.isnan(SWs) or SWs>100.0 or SWs<0.0] = 0.0
     # read the tropopause layer index
     tropopause = _read_group_nc(
         fname, 1, 'ANCILLARY_DATA', 'TropopausePressure').astype('float16')
@@ -435,10 +426,12 @@ class readers(object):
             add L2 data
             Input:
                 product_name [str]: a string specifying the type of data to read:
-                                   1 > TROPOMI_NO2
-                                   2 > TROPOMI_HCHO
-                                   3 > TROPOMI_CH4
-                                   4 > TROPOMI_CO     
+                                   TROPOMI_NO2
+                                   TROPOMI_HCHO
+                                   TROPOMI_CH4
+                                   TROPOMI_CO
+                                   OMI_NO2
+                                   OMI_HCHO   
                 product_dir  [Path]: a path object describing the path of L2 files
         '''
         self.satellite_product_dir = product_dir
