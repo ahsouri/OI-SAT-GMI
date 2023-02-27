@@ -5,6 +5,7 @@ from scipy.spatial import Delaunay
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
 
+
 def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
     print('AMF Recal begins...')
     # list the time in ctm_data
@@ -81,6 +82,26 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
         Mair = 28.97e-3
         g = 9.80665
         N_A = 6.02214076e23
+        # check if AMF recal is even possible
+        if np.size(L2_granule.scattering_weights) == 1:
+            print(
+                'no scattering weights were found, recalculation is not possible..just grabbing vcds')
+            ctm_partial_column = (
+                ctm_profile*ctm_deltap/g/Mair*N_A*1e-4*1e-15)*100.0
+            for z in range(0, np.shape(ctm_profile)[0]):
+                ctm_partial_column_tmp = ctm_partial_column[z, :, :].squeeze()
+                ctm_partial_column_tmp[ctm_mid_pressure[z, :, :] <
+                                       L2_granule.tropopause] = np.nan
+                ctm_partial_column[z, :, :] = ctm_partial_column_tmp
+            # calculate model VCD
+            model_VCD = np.nansum(ctm_partial_column, axis=0)
+            model_VCD[np.isnan(L2_granule.vcd)] = np.nan
+            ctm_data[closest_index_day].vcd = model_VCD
+            ctm_data[closest_index_day].time_at_sat = time_ctm[closest_index]
+            counter += 1
+            if counter == len(sat_data)-1:  # skip the rest
+                return sat_data, ctm_data
+            continue
         new_amf = np.zeros_like(L2_granule.vcd)*np.nan
         model_VCD = np.zeros_like(L2_granule.vcd)*np.nan
         for i in range(0, np.shape(L2_granule.vcd)[0]):
@@ -99,10 +120,6 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 interpolated_SW = f(np.log(ctm_mid_pressure_tmp))
                 # remove bad values
                 interpolated_SW[np.isinf(interpolated_SW)] = 0.0
-                print(L2_granule.pressure_mid[:, i, j].squeeze())
-                print(L2_granule.scattering_weights[:, i, j].squeeze())
-                print(interpolated_SW)
-                print(L2_granule.tropopause[i, j])
                 # remove above tropopause SWs
                 if np.size(L2_granule.tropopause) != 1:
                     interpolated_SW[ctm_mid_pressure_tmp <
@@ -124,4 +141,4 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
         ctm_data[closest_index_day].time_at_sat = time_ctm[closest_index]
         counter += 1
 
-    return sat_data
+    return sat_data, ctm_data

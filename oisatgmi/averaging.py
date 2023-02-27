@@ -81,11 +81,11 @@ def averaging(startdate: str, enddate: str, reader_obj):
                 list_years)] = np.count_nonzero(~np.isnan(sat_chosen_vcd))
         if np.size(ctm_chosen_vcd) != 0:
             ctm_averaged_vcd[:, :, month - min(list_months), year - min(
-                list_years)] = np.squeeze(np.nanmean(ctm_chosen_vcd, axis=0))            
+                list_years)] = np.squeeze(np.nanmean(ctm_chosen_vcd, axis=0))
 
-            moutput = {}
-            moutput["sample"] = sat_samples
-            moutput["vcd_sat"] = sat_averaged_vcd
-            moutput["vcd_model"] = ctm_averaged_vcd
-            moutput["vcd_err"] = sat_averaged_error
-            savemat("vcds.mat", moutput)
+        moutput = {}
+        moutput["sample"] = sat_samples
+        moutput["vcd_sat"] = sat_averaged_vcd
+        moutput["vcd_model"] = ctm_averaged_vcd
+        moutput["vcd_err"] = sat_averaged_error
+        savemat("vcds.mat", moutput)

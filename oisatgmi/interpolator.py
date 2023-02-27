@@ -19,12 +19,13 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         interpolator = NearestNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
         ZZ[dists > threshold] = np.nan
-    elif interpolator_type ==3:
-         interpolator = RBFInterpolator(interpol_func, (Z).flatten(),neighbors=5)
-         XX = np.stack([X.ravel(), Y.ravel()], -1) 
-         ZZ = interpolator(XX)
-         ZZ = ZZ.reshape(np.shape(X))
-         ZZ[dists > threshold] = np.nan
+    elif interpolator_type == 3:
+        interpolator = RBFInterpolator(
+            interpol_func, (Z).flatten(), neighbors=5)
+        XX = np.stack([X.ravel(), Y.ravel()], -1)
+        ZZ = interpolator(XX)
+        ZZ = ZZ.reshape(np.shape(X))
+        ZZ[dists > threshold] = np.nan
     else:
         raise Exception(
             "other type of interpolation methods has not been implemented yet")
@@ -165,20 +166,23 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
         scattering_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                                        np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-            print('....................... SWs [' + str(z) + '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+            print('....................... SWs [' + str(z) +
+                  '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
             _, _, scattering_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
-                                                          _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
-                                                                        * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+                                                             _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
+                                                                           * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
     else:
-        scattering_weights = []
+        scattering_weights = np.empty((1))
     pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                              np.shape(upscaled_X)[1]))
-    for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-        print('....................... pmids [' + str(z) + '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-        _, _,  pressure_mid[z, :, :], _ = _upscaler(lons_grid, lats_grid,
-                                                 _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
-                                                               * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-                                                 ctm_models_coordinate, grid_size, threshold_ctm)
+    if np.size(sat_data.scattering_weights) != 1:
+        for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+            print('....................... pmids [' + str(z) +
+                  '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+            _, _,  pressure_mid[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+                                                        _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
+                                                                      * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+                                                        ctm_models_coordinate, grid_size, threshold_ctm)
 
     interpolated_sat = satellite(vcd, scd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
     ], [], uncertainty, [], pressure_mid, [], scattering_weights, upscaled_ctm_needed)
