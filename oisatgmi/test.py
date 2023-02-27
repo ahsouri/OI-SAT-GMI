@@ -21,7 +21,7 @@ for trop in oisatgmi_obj.reader_obj.tropomi_data:
     counter = counter + 1
     output[:, :, counter] = trop.vcd
 
-    output[output <= 0.0] = np.nan
+    #output[output <= 0.0] = np.nan
 
 moutput = {}
 moutput["vcds_old"] = output
@@ -35,7 +35,7 @@ for trop in oisatgmi_obj.reader_obj.tropomi_data:
     counter = counter + 1
     output[:, :, counter] = trop.vcd
 
-    output[output <= 0.0] = np.nan
+    #output[output <= 0.0] = np.nan
 
 moutput["vcds_new"] = output
 savemat("vcds.mat", moutput)

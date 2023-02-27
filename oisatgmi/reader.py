@@ -284,7 +284,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 2.5  # degree
+        grid_size = 0.2  # degree
         tropomi_no2 = interpolator(
             1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
     # return
@@ -383,10 +383,10 @@ class readers(object):
 # testing
 if __name__ == "__main__":
     reader_obj = readers()
-    reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
+    reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/subset/'))
     reader_obj.read_ctm_data('201905', ['NO2'], frequency_opt='3-hourly')
     reader_obj.add_satellite_data(
-        'TROPOMI_NO2', Path('download_bucket/no2/'))
+        'TROPOMI_NO2', Path('download_bucket/no2/subset/'))
     reader_obj.read_satellite_data('201905', read_ak=True, num_job=1)
 
     latitude = reader_obj.tropomi_data[0].latitude_center

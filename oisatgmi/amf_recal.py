@@ -5,7 +5,6 @@ from scipy.spatial import Delaunay
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
 
-
 def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
     print('AMF Recal begins...')
     # list the time in ctm_data
@@ -75,9 +74,9 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                                                          L2_granule.latitude_center, 1, dists, threshold_ctm)
                 ctm_deltap_new[z, :, :] = _interpolosis(tri, ctm_deltap[z, :, :], L2_granule.longitude_center,
                                                         L2_granule.latitude_center, 1, dists, threshold_ctm)
-        ctm_mid_pressure = ctm_mid_pressure_new
-        ctm_profile = ctm_profile_new
-        ctm_deltap = ctm_deltap_new
+            ctm_mid_pressure = ctm_mid_pressure_new
+            ctm_profile = ctm_profile_new
+            ctm_deltap = ctm_deltap_new
         # interpolate vertical grid
         Mair = 28.97e-3
         g = 9.80665
@@ -98,6 +97,8 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                     np.log(L2_granule.pressure_mid[:, i, j].squeeze()),
                     L2_granule.scattering_weights[:, i, j].squeeze(), fill_value="extrapolate")
                 interpolated_SW = f(np.log(ctm_mid_pressure_tmp))
+                # remove bad values
+                interpolated_SW[np.isinf(interpolated_SW)] = 0.0
                 # remove above tropopause SWs
                 if np.size(L2_granule.tropopause) != 1:
                     interpolated_SW[ctm_mid_pressure_tmp <
@@ -114,7 +115,9 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 new_amf[i, j] = model_AMF
         # updating the sat data
         sat_data[counter].vcd = sat_data[counter].scd/new_amf
+        model_VCD[np.isnan(L2_granule.vcd)] = np.nan
         ctm_data[closest_index_day].vcd = model_VCD
         ctm_data[closest_index_day].time_at_sat = time_ctm[closest_index]
+        counter += 1
 
     return sat_data
