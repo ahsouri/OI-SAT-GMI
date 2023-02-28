@@ -75,6 +75,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                                                          L2_granule.latitude_center, 1, dists, threshold_ctm)
                 ctm_deltap_new[z, :, :] = _interpolosis(tri, ctm_deltap[z, :, :], L2_granule.longitude_center,
                                                         L2_granule.latitude_center, 1, dists, threshold_ctm)
+            
             ctm_mid_pressure = ctm_mid_pressure_new
             ctm_profile = ctm_profile_new
             ctm_deltap = ctm_deltap_new

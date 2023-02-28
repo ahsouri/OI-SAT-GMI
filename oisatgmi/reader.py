@@ -211,7 +211,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     # read time
     time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
         np.nanmean(np.array(_read_group_nc(
-            fname, 1, 'PRODUCT', 'delta_time')), axis=0)/1000.0
+            fname,['PRODUCT'], 'delta_time')), axis=0)/1000.0
     time = np.squeeze(time)
     time = datetime.datetime(
         2010, 1, 1) + datetime.timedelta(seconds=int(time))
@@ -277,7 +277,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.2  # degree
+        grid_size = 0.25  # degree
         tropomi_no2 = interpolator(
             1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
     # return

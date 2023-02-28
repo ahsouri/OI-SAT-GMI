@@ -77,15 +77,22 @@ def averaging(startdate: str, enddate: str, reader_obj):
                 list_years)] = np.squeeze(np.nanmean(sat_chosen_vcd, axis=0))
             sat_averaged_error[:, :, month - min(list_months), year - min(
                 list_years)] = np.sqrt(np.squeeze(np.nanmean(sat_chosen_error**2, axis=0)))
-            sat_samples[:, :, month - min(list_months), year - min(
-                list_years)] = np.count_nonzero(~np.isnan(sat_chosen_vcd))
+            
         if np.size(ctm_chosen_vcd) != 0:
             ctm_averaged_vcd[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(ctm_chosen_vcd, axis=0))
-
-        moutput = {}
-        moutput["sample"] = sat_samples
-        moutput["vcd_sat"] = sat_averaged_vcd
-        moutput["vcd_model"] = ctm_averaged_vcd
-        moutput["vcd_err"] = sat_averaged_error
-        savemat("vcds.mat", moutput)
+    
+    # squeeze it
+    sat_averaged_vcd = sat_averaged_vcd.squeeze()
+    sat_averaged_error = sat_averaged_error.squeeze()
+    ctm_averaged_vcd = ctm_averaged_vcd.squeeze()
+    # average over all data
+    if sat_averaged_vcd.ndim == 4:
+       sat_averaged_vcd = np.nanmean(np.nanmean(sat_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
+       ctm_averaged_vcd = np.nanmean(np.nanmean(ctm_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
+       sat_averaged_error = np.sqrt(np.nanmean(np.nanmean(sat_averaged_error**2, axis=3).squeeze(), axis=2).squeeze())
+    if sat_averaged_vcd.ndim == 3:
+       sat_averaged_vcd = np.nanmean(sat_averaged_vcd, axis=2).squeeze()
+       ctm_averaged_vcd = np.nanmean(ctm_averaged_vcd, axis=2).squeeze()
+       sat_averaged_error = np.sqrt(np.nanmean(sat_averaged_error**2, axis=2).squeeze())     
+    return  sat_averaged_vcd,sat_averaged_error,ctm_averaged_vcd

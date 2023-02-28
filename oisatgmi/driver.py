@@ -2,7 +2,8 @@ from reader import readers
 from pathlib import Path
 from amf_recal import amf_recal
 from averaging import averaging
-import datetime
+from optimal_interpolation import OI
+from report import report
 import numpy as np
 from scipy.io import savemat
 
@@ -38,7 +39,29 @@ class oisatgmi(object):
                 startdate [str]: starting date in YYYY-mm-dd format string
                 enddate [str]: ending date in YYYY-mm-dd format string  
         '''
-        averaging(startdate, enddate, self.reader_obj)
+        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd = averaging(
+            startdate, enddate, self.reader_obj)
+
+    def oi(self, error_ctm=200.0):
+
+        self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
+                                                                                           (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
+
+    def reporting(self, fname: str):
+
+        # pick the right latitude and longitude
+        # the right one is the coarsest one so
+        if np.size(self.reader_obj.ctm_data[0].latitude)*np.size(self.reader_obj.ctm_data[0].longitude) > \
+           np.size(self.reader_obj.sat_data[0].latitude_center)*np.size(self.reader_obj.sat_data[0].longitude_center):
+
+            lat = self.reader_obj.sat_data[0].latitude_center
+            lon = self.reader_obj.sat_data[0].longitude_center
+        else:
+            lat = self.reader_obj.ctm_data[0].latitude
+            lon = self.reader_obj.ctm_data[0].longitude
+
+        report(lon, lat, self.ctm_averaged_vcd, self.ctm_averaged_vcd_corrected,
+               self.sat_averaged_vcd, self.increment_OI, self.ak_OI, self.error_OI,fname)
 
 
 # testing
