@@ -32,12 +32,13 @@ def _get_nc_attr(filename, var):
     return attr
 
 
-def _read_group_nc(filename, num_groups, group, var):
+def _read_group_nc(filename, group, var):
     # reading nc files with a group structure
     nc_f = filename
     nc_fid = Dataset(nc_f, 'r')
+    num_groups = len(group) 
     if num_groups == 1:
-        out = np.array(nc_fid.groups[group].variables[var])
+        out = np.array(nc_fid.groups[group[0]].variables[var])
     elif num_groups == 2:
         out = np.array(nc_fid.groups[group[0]].groups[group[1]].variables[var])
     elif num_groups == 3:
@@ -130,45 +131,45 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     # hcho reader
     print("Currently reading: " + fname.split('/')[-1])
     # read time
-    time = _read_group_nc(fname, 1, 'PRODUCT', 'time') +\
+    time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
         np.nanmean(np.array(_read_group_nc(
-            fname, 1, 'PRODUCT', 'delta_time')), axis=1)/1000.0
+            fname, ['PRODUCT'], 'delta_time')), axis=1)/1000.0
     time = np.nanmean(time, axis=0)
     time = np.squeeze(time)
     time = datetime.datetime(
         2010, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
     # read lat/lon at corners
-    latitude_corner = _read_group_nc(fname, 3, ['PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'],
+    latitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'],
                                      'latitude_bounds').astype('float16')
-    longitude_corner = _read_group_nc(fname, 3, ['PRODUCT', 'SUPPORT_DATA',
+    longitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA',
                                                  'GEOLOCATIONS'], 'longitude_bounds').astype('float16')
     # read total amf
-    amf_total = _read_group_nc(fname, 3, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
+    amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                'formaldehyde_tropospheric_air_mass_factor')
     # read trop no2
-    vcd = _read_group_nc(fname, 1, 'PRODUCT',
+    vcd = _read_group_nc(fname, ['PRODUCT'],
                          'formaldehyde_tropospheric_vertical_column')
-    scd = _read_group_nc(fname, 1, 'PRODUCT', 'formaldehyde_tropospheric_vertical_column') *\
+    scd = _read_group_nc(fname, ['PRODUCT'], 'formaldehyde_tropospheric_vertical_column') *\
         amf_total
     vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
     scd = (scd*6.02214*1e19*1e-15).astype('float16')
     # read quality flag
     quality_flag = _read_group_nc(
-        fname, 1, 'PRODUCT', 'qa_value').astype('float16')
+        fname, ['PRODUCT'], 'qa_value').astype('float16')
     # read pressures for SWs
     tm5_a = _read_group_nc(
-        fname, 3, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_a')/100.0
+        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_a')/100.0
     tm5_b = _read_group_nc(
-        fname, 3, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_b')
-    ps = _read_group_nc(fname, 3, [
+        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_b')
+    ps = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float16')/100.0
     p_mid = np.zeros(
         (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
     if read_ak == True:
         SWs = np.zeros(
             (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-        AKs = _read_group_nc(fname, 3, [
+        AKs = _read_group_nc(fname, [
             'PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'averaging_kernel').astype('float16')
     else:
         SWs = np.empty((1))
@@ -178,9 +179,9 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
         if read_ak == True:
             SWs[z, :, :] = AKs[:, :, z]*amf_total
     # remove bad SWs
-    SWs[np.isinf(SWs) or np.isnan(SWs) or SWs>100.0 or SWs<0.0] = 0.0
+    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) | (SWs>100.0) | (SWs<0.0))] = 0.0
     # read the precision
-    uncertainty = _read_group_nc(fname, 1, 'PRODUCT',
+    uncertainty = _read_group_nc(fname, 'PRODUCT',
                                  'formaldehyde_tropospheric_vertical_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
     tropomi_hcho = satellite(vcd, scd, time, [], np.empty((1)), [], [
@@ -208,7 +209,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     # say which file is being read
     print("Currently reading: " + fname.split('/')[-1])
     # read time
-    time = _read_group_nc(fname, 1, 'PRODUCT', 'time') +\
+    time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
         np.nanmean(np.array(_read_group_nc(
             fname, 1, 'PRODUCT', 'delta_time')), axis=0)/1000.0
     time = np.squeeze(time)
@@ -216,36 +217,36 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
         2010, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(tropomi_no2.time),"%Y-%m-%d %H:%M:%S"))
     # read lat/lon at corners
-    latitude_corner = _read_group_nc(fname, 3, ['PRODUCT', 'SUPPORT_DATA',
+    latitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA',
                                                 'GEOLOCATIONS'], 'latitude_bounds').astype('float32')
-    longitude_corner = _read_group_nc(fname, 3, ['PRODUCT', 'SUPPORT_DATA',
+    longitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA',
                                                  'GEOLOCATIONS'], 'longitude_bounds').astype('float32')
     # read total amf
-    amf_total = _read_group_nc(fname, 1, 'PRODUCT', 'air_mass_factor_total')
+    amf_total = _read_group_nc(fname, ['PRODUCT'], 'air_mass_factor_total')
     # read trop no2
     vcd = _read_group_nc(
-        fname, 1, 'PRODUCT', 'nitrogendioxide_tropospheric_column')
-    scd = _read_group_nc(fname, 1, 'PRODUCT', 'nitrogendioxide_tropospheric_column') *\
-        _read_group_nc(fname, 1, 'PRODUCT', 'air_mass_factor_troposphere')
+        fname, ['PRODUCT'], 'nitrogendioxide_tropospheric_column')
+    scd = _read_group_nc(fname, ['PRODUCT'], 'nitrogendioxide_tropospheric_column') *\
+        _read_group_nc(fname, ['PRODUCT'], 'air_mass_factor_troposphere')
     vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
     scd = (scd*6.02214*1e19*1e-15).astype('float16')
     # read quality flag
     quality_flag = _read_group_nc(
-        fname, 1, 'PRODUCT', 'qa_value').astype('float16')
+        fname, ['PRODUCT'], 'qa_value').astype('float16')
     # read pressures for SWs
-    tm5_a = _read_group_nc(fname, 1, 'PRODUCT', 'tm5_constant_a')/100.0
+    tm5_a = _read_group_nc(fname, ['PRODUCT'], 'tm5_constant_a')/100.0
     tm5_a = np.concatenate((tm5_a[:, 0], 0), axis=None)
-    tm5_b = _read_group_nc(fname, 1, 'PRODUCT', 'tm5_constant_b')
+    tm5_b = _read_group_nc(fname, ['PRODUCT'], 'tm5_constant_b')
     tm5_b = np.concatenate((tm5_b[:, 0], 0), axis=None)
 
-    ps = _read_group_nc(fname, 3, [
+    ps = _read_group_nc(fname, [
                         'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')/100.0
     p_mid = np.zeros(
         (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
     if read_ak == True:
         SWs = np.zeros(
             (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-        AKs = _read_group_nc(fname, 1, 'PRODUCT',
+        AKs = _read_group_nc(fname, ['PRODUCT'],
                              'averaging_kernel').astype('float16')
     else:
         SWs = np.empty((1))
@@ -255,10 +256,10 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
         if read_ak == True:
             SWs[z, :, :] = AKs[:, :, z]*amf_total
     # remove bad SWs
-    SWs[np.isinf(SWs) or np.isnan(SWs) or SWs>100.0 or SWs<0.0] = 0.0
+    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) | (SWs>100.0) | (SWs<0.0))] = 0.0
     # read the tropopause layer index
     trop_layer = _read_group_nc(
-        fname, 1, 'PRODUCT', 'tm5_tropopause_layer_index')
+        fname, ['PRODUCT'], 'tm5_tropopause_layer_index')
     tropopause = np.zeros_like(trop_layer).astype('float16')
     for i in range(0, np.shape(trop_layer)[0]):
         for j in range(0, np.shape(trop_layer)[1]):
@@ -267,7 +268,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
             else:
                 tropopause[i, j] = np.nan
     # read the precision
-    uncertainty = _read_group_nc(fname, 1, 'PRODUCT',
+    uncertainty = _read_group_nc(fname, ['PRODUCT'],
                                  'nitrogendioxide_tropospheric_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
     # populate tropomi class
@@ -296,26 +297,26 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
     # say which file is being read
     print("Currently reading: " + fname.split('/')[-1])
     # read time
-    time = _read_group_nc(fname, 1, 'GEOLOCATION_DATA', 'Time')
+    time = _read_group_nc(fname, ['GEOLOCATION_DATA'], 'Time')
     time = np.squeeze(np.nanmean(time))
     time = datetime.datetime(
         1993, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(time),"%Y-%m-%d %H:%M:%S"))
     # read lat/lon at corners
     latitude_corner = _read_group_nc(
-        fname, 1, 'GEOLOCATION_DATA', 'FoV75CornerLatitude').astype('float32')
+        fname, ['GEOLOCATION_DATA'], 'FoV75CornerLatitude').astype('float32')
     longitude_corner = _read_group_nc(
-        fname, 1, 'GEOLOCATION_DATA', 'FoV75CornerLongitude').astype('float32')
+        fname, ['GEOLOCATION_DATA'], 'FoV75CornerLongitude').astype('float32')
     # read trop no2
     vcd = _read_group_nc(
-        fname, 1, 'SCIENCE_DATA', 'ColumnAmountNO2Trop')
-    scd = _read_group_nc(fname, 1, 'SCIENCE_DATA', 'AmfTrop') *\
-        _read_group_nc(fname, 1, 'SCIENCE_DATA', 'ColumnAmountNO2Trop')
+        fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Trop')
+    scd = _read_group_nc(fname, ['SCIENCE_DATA'], 'AmfTrop') *\
+        _read_group_nc(fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Trop')
     vcd = (vcd*1e-15).astype('float16')
     scd = (scd*1e-15).astype('float16')
     # read quality flag
     quality_flag_temp = _read_group_nc(
-        fname, 1, 'SCIENCE_DATA', 'VcdQualityFlags').astype('float16')
+        fname, ['SCIENCE_DATA'], 'VcdQualityFlags').astype('float16')
     quality_flag = np.zeros_like(quality_flag_temp)
     for i in range(0, np.shape(quality_flag)[0]):
         for j in range(0, np.shape(quality_flag)[1]):
@@ -329,12 +330,12 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
                 quality_flag[i, j] = 100.0
 
     # read pressures for SWs
-    ps = _read_group_nc(fname, 1, 'GEOLOCATION_DATA',
+    ps = _read_group_nc(fname, ['GEOLOCATION_DATA'],
                         'ScatteringWeightPressure').astype('float16')
     p_mid = np.zeros(
         (35, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
     if read_ak == True:
-        SWs = _read_group_nc(fname, 1, 'SCIENCE_DATA',
+        SWs = _read_group_nc(fname, ['SCIENCE_DATA'],
                              'ScatteringWeight').astype('float16')
         SWs = SWs.transpose((2, 0, 1))
     else:
@@ -342,12 +343,12 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
     for z in range(0, 35):
         p_mid[z, :, :] = ps[z]
     # remove bad SWs
-    SWs[np.isinf(SWs) or np.isnan(SWs) or SWs>100.0 or SWs<0.0] = 0.0
+    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) | (SWs>100.0) | (SWs<0.0))] = 0.0
     # read the tropopause layer index
     tropopause = _read_group_nc(
-        fname, 1, 'ANCILLARY_DATA', 'TropopausePressure').astype('float16')
+        fname, ['ANCILLARY_DATA'], 'TropopausePressure').astype('float16')
     # read the precision
-    uncertainty = _read_group_nc(fname, 1, 'SCIENCE_DATA',
+    uncertainty = _read_group_nc(fname, ['SCIENCE_DATA'],
                                  'ColumnAmountNO2TropStd')
     uncertainty = (uncertainty*1e-15).astype('float16')
     # populate omi class
@@ -356,7 +357,7 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.25  # degree
+        grid_size = 1.0  # degree
         omi_no2 = interpolator(
             1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return
