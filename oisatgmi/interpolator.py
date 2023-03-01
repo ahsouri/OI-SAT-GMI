@@ -3,7 +3,6 @@ from config import satellite
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from scipy.interpolate import RBFInterpolator
-from test_plotter import test_plotter
 from scipy import signal
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
@@ -11,7 +10,7 @@ from scipy.spatial import cKDTree
 
 def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
     # to make the interpolator() shorter
-    #inflate the threshold
+    # inflate the threshold
     threshold = threshold*3
     if interpolator_type == 1:
         interpolator = LinearNDInterpolator(interpol_func, (Z).flatten())
@@ -187,5 +186,5 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
                                                         ctm_models_coordinate, grid_size, threshold_ctm)
 
     interpolated_sat = satellite(vcd, scd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
-    ], [], uncertainty, [], pressure_mid, [], scattering_weights, upscaled_ctm_needed)
+    ], [], uncertainty, [], pressure_mid, [], scattering_weights, upscaled_ctm_needed, [], [], [], [])
     return interpolated_sat

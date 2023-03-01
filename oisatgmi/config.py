@@ -20,6 +20,10 @@ class satellite:
     averaging_kernels: np.ndarray
     scattering_weights: np.ndarray
     ctm_upscaled_needed: bool
+    ctm_vcd: np.ndarray
+    ctm_time_at_sat: datetime.datetime
+    old_amf: np.ndarray
+    new_amf: np.ndarray
 
 @dataclass
 class ctm_model:
@@ -31,5 +35,3 @@ class ctm_model:
     tempeature_mid: np.ndarray
     delta_p: np.ndarray
     ctmtype: str
-    vcd: np.ndarray
-    time_at_sat: datetime.datetime

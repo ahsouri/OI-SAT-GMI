@@ -92,15 +92,13 @@ def GMI_reader(product_dir: str, YYYYMM: str, gases_to_be_saved: list, frequency
         delta_p = np.flip(delta_p, axis=1)  # from bottom to top
         pressure_mid = _read_nc(fname_met, 'PL').astype('float16')/100.0
         pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
-        tempeature_mid = _read_nc(fname_met, 'T').astype('float16')
-        tempeature_mid = np.flip(tempeature_mid, axis=1)  # from bottom to top
         gas_profile = {}
         for gas in gasnames:
             gas_profile[gas] = np.flip(_read_nc(
                 fname_gas, gas).astype('float32'), axis=1)
 
         gmi_data = ctm_model(latitude, longitude, time, gas_profile,
-                             pressure_mid, tempeature_mid, delta_p, ctmtype, [], [])
+                             pressure_mid,[], delta_p, ctmtype)
         return gmi_data
 
     if frequency_opt == '3-hourly':
@@ -185,7 +183,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
                                  'formaldehyde_tropospheric_vertical_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
     tropomi_hcho = satellite(vcd, scd, time, [], np.empty((1)), [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [])
+    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [],[],[],[],[])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -273,7 +271,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
     # populate tropomi class
     tropomi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [])
+    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [],[],[],[],[])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -353,7 +351,7 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
     uncertainty = (uncertainty*1e-15).astype('float16')
     # populate omi class
     omi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [])
+    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [],[],[],[],[])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')

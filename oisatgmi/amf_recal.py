@@ -39,7 +39,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
         closest_index_day = int(np.floor(closest_index/8.0))
         closest_index_hour = int(closest_index % 8)
         print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
-              " is " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
+              " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
         # take the profile and pressure from the right ctm data
         ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )
@@ -75,7 +75,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                                                          L2_granule.latitude_center, 1, dists, threshold_ctm)
                 ctm_deltap_new[z, :, :] = _interpolosis(tri, ctm_deltap[z, :, :], L2_granule.longitude_center,
                                                         L2_granule.latitude_center, 1, dists, threshold_ctm)
-            
+
             ctm_mid_pressure = ctm_mid_pressure_new
             ctm_profile = ctm_profile_new
             ctm_deltap = ctm_deltap_new
@@ -97,11 +97,11 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
             # calculate model VCD
             model_VCD = np.nansum(ctm_partial_column, axis=0)
             model_VCD[np.isnan(L2_granule.vcd)] = np.nan
-            ctm_data[closest_index_day].vcd = model_VCD
-            ctm_data[closest_index_day].time_at_sat = time_ctm[closest_index]
+            sat_data[counter].ctm_vcd = model_VCD
+            sat_data[counter].ctm_time_at_sat = time_ctm[closest_index]
             counter += 1
             if counter == len(sat_data):  # skip the rest
-                return sat_data, ctm_data
+                return sat_data
             continue
         new_amf = np.zeros_like(L2_granule.vcd)*np.nan
         model_VCD = np.zeros_like(L2_granule.vcd)*np.nan
@@ -136,10 +136,12 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 # new amf
                 new_amf[i, j] = model_AMF
         # updating the sat data
+        sat_data[counter].old_amf = sat_data[counter].scd/sat_data[counter].vcd
+        sat_data[counter].new_amf = new_amf
         sat_data[counter].vcd = sat_data[counter].scd/new_amf
         model_VCD[np.isnan(L2_granule.vcd)] = np.nan
-        ctm_data[closest_index_day].vcd = model_VCD
-        ctm_data[closest_index_day].time_at_sat = time_ctm[closest_index]
+        sat_data[counter].ctm_vcd = model_VCD
+        sat_data[counter].ctm_time_at_sat = time_ctm[closest_index]
         counter += 1
 
-    return sat_data, ctm_data
+    return sat_data

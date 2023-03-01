@@ -38,13 +38,17 @@ def averaging(startdate: str, enddate: str, reader_obj):
         len(range(np.min(list_months),
                   np.max(list_months)+1)),
         len(range(np.min(list_years), np.max(list_years)+1))))
-    sat_samples = np.zeros_like(sat_averaged_vcd)*np.nan
+    #sat_samples = np.zeros_like(sat_averaged_vcd)*np.nan
     sat_averaged_error = np.zeros_like(sat_averaged_vcd)*np.nan
     ctm_averaged_vcd = np.zeros_like(sat_averaged_vcd)*np.nan
+    sat_old_amf = np.zeros_like(sat_averaged_vcd)*np.nan
+    sat_new_amf = np.zeros_like(sat_averaged_vcd)*np.nan
     for year in range(np.min(list_years), np.max(list_years)+1):
         for month in range(np.min(list_months), np.max(list_months)+1):
             #chosen_days = list_days[((list_months == month) & (list_years == year))]
             sat_chosen_vcd = []
+            sat_chosen_new_amf = []
+            sat_chosen_old_amf = []
             sat_chosen_error = []
             ctm_chosen_vcd = []
             for sat_data in reader_obj.sat_data:
@@ -53,46 +57,50 @@ def averaging(startdate: str, enddate: str, reader_obj):
                 if ((time_sat.year == year) and (time_sat.month == month)):
                     sat_chosen_vcd.append(sat_data.vcd)
                     sat_chosen_error.append(sat_data.uncertainty)
-            for ctm_data in reader_obj.ctm_data:
-                time_ctm = ctm_data.time_at_sat
-                if np.size(time_ctm) == 0:
-                    continue  # this ctm_data were never used for amf_recal
-                year_ctm = np.floor(time_ctm/1e4)
-                month_ctm = np.floor((time_ctm-year_ctm*1e4)/100)
-                day_ctm = np.floor(time_ctm - year_ctm*1e4 - month_ctm*1e2)
-                frac_day_ctm = (time_ctm - year_ctm*1e4 -
-                                month_ctm*1e2) - day_ctm
-                time_ctm = datetime.datetime(int(year_ctm), int(
-                    month_ctm), int(day_ctm), int(np.floor(frac_day_ctm*24)))
-                # see if it falls
-                if ((time_ctm.year == year) and (time_ctm.month == month)):
-                    ctm_chosen_vcd.append(ctm_data.vcd)
-
+                    ctm_chosen_vcd.append(sat_data.ctm_vcd)
+                    sat_chosen_new_amf.append(sat_data.new_amf)
+                    sat_chosen_old_amf.append(sat_data.old_amf)
             sat_chosen_vcd = np.array(sat_chosen_vcd)
             sat_chosen_vcd[np.isinf(sat_chosen_vcd)] = np.nan
             sat_chosen_error = np.array(sat_chosen_error)
             ctm_chosen_vcd = np.array(ctm_chosen_vcd)
+            sat_chosen_new_amf = np.array(sat_chosen_new_amf)
+            sat_chosen_old_amf = np.array(sat_chosen_old_amf)
         if np.size(sat_chosen_vcd) != 0:
             sat_averaged_vcd[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(sat_chosen_vcd, axis=0))
             sat_averaged_error[:, :, month - min(list_months), year - min(
                 list_years)] = np.sqrt(np.squeeze(np.nanmean(sat_chosen_error**2, axis=0)))
-            
-        if np.size(ctm_chosen_vcd) != 0:
             ctm_averaged_vcd[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(ctm_chosen_vcd, axis=0))
-    
+            sat_old_amf[:, :, month - min(list_months), year - min(
+                list_years)] = np.squeeze(np.nanmean(sat_chosen_old_amf, axis=0))
+            sat_new_amf[:, :, month - min(list_months), year - min(
+                list_years)] = np.squeeze(np.nanmean(sat_chosen_new_amf, axis=0))
+
     # squeeze it
     sat_averaged_vcd = sat_averaged_vcd.squeeze()
     sat_averaged_error = sat_averaged_error.squeeze()
     ctm_averaged_vcd = ctm_averaged_vcd.squeeze()
+    sat_old_amf = sat_old_amf.squeeze()
+    sat_new_amf = sat_new_amf.squeeze()
     # average over all data
     if sat_averaged_vcd.ndim == 4:
-       sat_averaged_vcd = np.nanmean(np.nanmean(sat_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
-       ctm_averaged_vcd = np.nanmean(np.nanmean(ctm_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
-       sat_averaged_error = np.sqrt(np.nanmean(np.nanmean(sat_averaged_error**2, axis=3).squeeze(), axis=2).squeeze())
+        sat_averaged_vcd = np.nanmean(np.nanmean(
+            sat_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
+        ctm_averaged_vcd = np.nanmean(np.nanmean(
+            ctm_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
+        sat_old_amf = np.nanmean(np.nanmean(
+            sat_old_amf, axis=3).squeeze(), axis=2).squeeze()
+        sat_new_amf = np.nanmean(np.nanmean(
+            sat_new_amf, axis=3).squeeze(), axis=2).squeeze()
+        sat_averaged_error = np.sqrt(np.nanmean(np.nanmean(
+            sat_averaged_error**2, axis=3).squeeze(), axis=2).squeeze())
     if sat_averaged_vcd.ndim == 3:
-       sat_averaged_vcd = np.nanmean(sat_averaged_vcd, axis=2).squeeze()
-       ctm_averaged_vcd = np.nanmean(ctm_averaged_vcd, axis=2).squeeze()
-       sat_averaged_error = np.sqrt(np.nanmean(sat_averaged_error**2, axis=2).squeeze())     
-    return  sat_averaged_vcd,sat_averaged_error,ctm_averaged_vcd
+        sat_averaged_vcd = np.nanmean(sat_averaged_vcd, axis=2).squeeze()
+        ctm_averaged_vcd = np.nanmean(ctm_averaged_vcd, axis=2).squeeze()
+        sat_old_amf = np.nanmean(sat_old_amf, axis=2).squeeze()
+        sat_new_amf = np.nanmean(sat_new_amf, axis=2).squeeze()
+        sat_averaged_error = np.sqrt(np.nanmean(
+            sat_averaged_error**2, axis=2).squeeze())
+    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_new_amf, sat_old_amf

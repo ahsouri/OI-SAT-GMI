@@ -1,5 +1,5 @@
 import os.path
-import glob
+import os
 import numpy as np
 from fpdf import FPDF
 import matplotlib.pyplot as plt
@@ -9,7 +9,7 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def plotter(X, Y, Z, fname: str, title: str, unit: int):
+def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin,vmax):
 
     pc = ccrs.PlateCarree()
     fig = plt.figure(figsize=(16, 8))
@@ -19,7 +19,7 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int):
     im = ax.imshow(Z, origin='lower',
                    extent=[-180, 180,
                            -90, 90],
-                   interpolation='nearest', aspect='auto', vmin=np.nanpercentile(Z.flatten(), 5), vmax=np.percentile(Z.flatten(), 98))
+                   interpolation='nearest', aspect='auto', vmin=vmin, vmax=vmax)
     ax.coastlines(resolution='50m', color='black', linewidth=4)
     # fixing tickers
     x_ticks = np.arange(-180,
@@ -49,18 +49,25 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int):
 
 
 def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd_after: np.ndarray,
-           sat_vcd: np.ndarray, increment: np.ndarray, averaging_kernel: np.ndarray, error_OI: np.ndarray, fname):
+           sat_vcd: np.ndarray, increment: np.ndarray, averaging_kernel: np.ndarray, error_OI: np.ndarray, 
+           new_amf: np.ndarray, old_amf: np.ndarray, fname):
     '''
     '''
+    if not os.path.exists('temp'):
+        os.makedirs('temp')
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
-            fname + '.png', 'CTM VCD (prior)', 1)
+            fname + '.png', 'CTM VCD (prior)', 1,0.0,10.0)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +
-            fname + '.png', 'CTM VCD (posterior)', 1)
+            fname + '.png', 'CTM VCD (posterior)', 1,0.0,10.0)
     plotter(lon, lat, sat_vcd, 'temp/sat_vcd_' + fname +
-            '.png', 'Satellite Observation (Y)', 1)
+            '.png', 'Satellite Observation (Y)', 1,0.0,10.0)
     plotter(lon, lat, increment, 'temp/increment_' +
-            fname + '.png', 'Increment', 1)
+            fname + '.png', 'Increment', 1, -5.0,5.0)
     plotter(lon, lat, averaging_kernel, 'temp/ak_' +
-            fname + '.png', 'Averaging Kernels', 2)
+            fname + '.png', 'Averaging Kernels', 2,0.0,1.0)
     plotter(lon, lat, error_OI, 'temp/error_' +
-            fname + '.png', 'OI estimate error', 1)
+            fname + '.png', 'OI estimate error', 1,0.0,10.0)
+    plotter(lon, lat, new_amf, 'temp/new_amf_' +
+            fname + '.png', 'new AMF', 2,0.0,4)
+    plotter(lon, lat, old_amf, 'temp/old_amf_' +
+            fname + '.png', 'old AMF', 2,0.0,4)

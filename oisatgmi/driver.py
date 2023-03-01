@@ -29,7 +29,7 @@ class oisatgmi(object):
 
     def recal_amf(self):
 
-        self.reader_obj.sat_data, self.reader_obj.ctm_data = amf_recal(
+        self.reader_obj.sat_data = amf_recal(
             self.reader_obj.ctm_data, self.reader_obj.sat_data, self.gasname)
 
     def average(self, startdate: str, enddate: str):
@@ -39,7 +39,7 @@ class oisatgmi(object):
                 startdate [str]: starting date in YYYY-mm-dd format string
                 enddate [str]: ending date in YYYY-mm-dd format string  
         '''
-        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd = averaging(
+        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.new_amf, self.old_amf = averaging(
             startdate, enddate, self.reader_obj)
 
     def oi(self, error_ctm=200.0):
@@ -61,11 +61,16 @@ class oisatgmi(object):
             lon = self.reader_obj.ctm_data[0].longitude
 
         report(lon, lat, self.ctm_averaged_vcd, self.ctm_averaged_vcd_corrected,
-               self.sat_averaged_vcd, self.increment_OI, self.ak_OI, self.error_OI,fname)
+               self.sat_averaged_vcd, self.increment_OI, self.ak_OI, self.error_OI,self.new_amf, self.old_amf, fname)
 
 
 # testing
 if __name__ == "__main__":
 
-    oi_obj = oisatgmi()
-    oi_obj.average('2021-10-02', '2021-11-04')
+    oisatgmi_obj = oisatgmi()
+    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi'), ['NO2'], '3-hourly', 'OMI_NO2',
+                       Path('download_bucket/omi_no2'),'201905',read_ak=True, num_job=1)
+    oisatgmi_obj.recal_amf()
+    oisatgmi_obj.average('2019-05-01','2019-06-01')
+    oisatgmi_obj.oi()
+    oisatgmi_obj.reporting('NO2_201905')
