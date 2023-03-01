@@ -73,6 +73,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
                 list_years)] = np.sqrt(np.squeeze(np.nanmean(sat_chosen_error**2, axis=0)))
             ctm_averaged_vcd[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(ctm_chosen_vcd, axis=0))
+        if np.size(sat_new_amf) != 0:
             sat_old_amf[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(sat_chosen_old_amf, axis=0))
             sat_new_amf[:, :, month - min(list_months), year - min(

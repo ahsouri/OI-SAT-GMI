@@ -99,6 +99,8 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
             model_VCD[np.isnan(L2_granule.vcd)] = np.nan
             sat_data[counter].ctm_vcd = model_VCD
             sat_data[counter].ctm_time_at_sat = time_ctm[closest_index]
+            sat_data[counter].old_amf = np.empty((1))
+            sat_data[counter].new_amf = np.empty((1))
             counter += 1
             if counter == len(sat_data):  # skip the rest
                 return sat_data
