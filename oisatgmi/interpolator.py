@@ -11,7 +11,6 @@ from scipy.spatial import cKDTree
 def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
     # to make the interpolator() shorter
     # inflate the threshold
-    threshold = threshold*2
     if interpolator_type == 1:
         interpolator = LinearNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
@@ -113,6 +112,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     mask = sat_data.quality_flag > flag_thresh
     mask = np.multiply(mask, 1.0).squeeze()
     mask[mask == 0] = np.nan
+    # mask clouds
     # define the triangulation
     points = np.zeros((np.size(sat_center_lat), 2))
     points[:, 0] = sat_center_lon.flatten()

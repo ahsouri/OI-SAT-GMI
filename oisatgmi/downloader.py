@@ -6,6 +6,7 @@ import certifi
 import urllib3
 from time import sleep
 import requests
+import datetime
 
 
 def _charconv1(char):
@@ -27,6 +28,11 @@ def _get_http_data(http1, svcurl1, request):
         print('API Error: faulty request')
         sys.exit(1)
     return response
+
+
+def _daterange(start_date, end_date):
+    for n in range(int((end_date - start_date).days)):
+        yield start_date + datetime.timedelta(n)
 
 
 class downloader(object):
@@ -204,10 +210,50 @@ class downloader(object):
             else:
                 continue
 
+    def merra2_gmi(self, output_fld: Path):
+        '''
+            download the merra2-gmi data
+            output_fld [Path]: a pathlib object describing the output folder
+        '''
+        # convert dates to datetime
+        start_date = datetime.date(int(self.datestart[0:4]), int(
+            self.datestart[5:7]), int(self.datestart[8:10]))
+        end_date = datetime.date(int(self.dateend[0:4]), int(
+            self.dateend[5:7]), int(self.dateend[8:10]))
+
+        for single_date in _daterange(start_date, end_date):
+
+            url = 'https://portal.nccs.nasa.gov/datashare/merra2_gmi/Y'
+            url += str(single_date.year) + '/M'
+            url += f"{single_date.month:02}" + '/MERRA2_GMI.tavg3_3d_tac_Nv.'
+            url += str(single_date.year) + \
+                f"{single_date.month:02}" + f"{single_date.day:02}"
+            url += '.nc4'
+            cmd = "wget -nH -nc --no-check-certificate --content-disposition --continue "
+            cmd += '"' + url + '"'
+            cmd += " -P " + (output_fld.as_posix())
+            if not os.path.exists(output_fld.as_posix()):
+                os.makedirs(output_fld.as_posix())
+            os.system(cmd)
+
+            url = 'https://portal.nccs.nasa.gov/datashare/merra2_gmi/Y'
+            url += str(single_date.year) + '/M'
+            url += f"{single_date.month:02}" + '/MERRA2_GMI.tavg3_3d_met_Nv.'
+            url += str(single_date.year) + \
+                f"{single_date.month:02}" + f"{single_date.day:02}"
+            url += '.nc4'
+            cmd = "wget -nH -nc --no-check-certificate --content-disposition --continue "
+            cmd += '"' + url + '"'
+            cmd += " -P " + (output_fld.as_posix())
+            if not os.path.exists(output_fld.as_posix()):
+                os.makedirs(output_fld.as_posix())
+            os.system(cmd)
+
 
 # testing
 if __name__ == "__main__":
 
     dl_obj = downloader(-90, 90, -180, 180, '2019-05-01', '2019-05-05')
     #dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
-    dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_no2/'))
+    #dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_no2/'))
+    dl_obj.merra2_gmi(Path('download_bucket/gmi/'))

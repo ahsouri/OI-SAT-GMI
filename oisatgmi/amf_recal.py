@@ -139,11 +139,13 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 new_amf[i, j] = model_AMF
         # updating the sat data
         sat_data[counter].old_amf = sat_data[counter].scd/sat_data[counter].vcd
+        new_amf[np.isnan(sat_data[counter].vcd)] = np.nan
         sat_data[counter].new_amf = new_amf
         sat_data[counter].vcd = sat_data[counter].scd/new_amf
         model_VCD[np.isnan(L2_granule.vcd)] = np.nan
         sat_data[counter].ctm_vcd = model_VCD
         sat_data[counter].ctm_time_at_sat = time_ctm[closest_index]
+
         counter += 1
 
     return sat_data

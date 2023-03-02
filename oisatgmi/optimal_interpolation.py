@@ -2,7 +2,8 @@ import numpy as np
 from scipy.io import savemat
 from kneed import KneeLocator
 
-def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on = True):
+
+def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on=True):
     '''
     Optimal interpolation between two variables looking at the exact quantity
             under such condition, K = ones
@@ -10,9 +11,9 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on 
     '''
     print('Optimal interpolation begins...')
     # negative values are not meaninful from the CTM perspective so:
-    Y[Y<0] = 0.0
-    if regularization_on == True:   
-        scaling_factors = np.arange(0.1,10,0.1)
+    Y[Y < 0] = 0.0
+    if regularization_on == True:
+        scaling_factors = np.arange(0.1, 10, 0.1)
         scaling_factors = list(scaling_factors)
     else:
         scaling_factors = []
@@ -22,19 +23,20 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on 
     kalman_gain = []
     Sb = []
     averaging_kernel = []
-    for reg in scaling_factors:                            
-        kalman_gain_tmp = (Sa*(Sa+So*float(reg))**(-1))
+    for reg in scaling_factors:
+        kalman_gain_tmp = (Sa*float(reg)*(Sa*float(reg)+So)**(-1))
         kalman_gain.append(kalman_gain_tmp)
-        Sb_tmp = (np.ones_like(kalman_gain_tmp)-kalman_gain_tmp)*Sa
+        Sb_tmp = (np.ones_like(kalman_gain_tmp)-kalman_gain_tmp)*Sa*float(reg)
         Sb.append(Sb_tmp)
-        AK = np.ones_like(Sb_tmp)-(Sb_tmp)/(Sa)
-        AK[AK==0] = 0.0
+        AK = np.ones_like(Sb_tmp)-(Sb_tmp)/(Sa*float(reg))
+        AK[AK == 0] = 0.0
         averaging_kernel.append(AK)
         averaging_kernel_mean.append(np.nanmean(AK.flatten()))
 
     if regularization_on == True:
         averaging_kernel_mean = np.array(averaging_kernel_mean)
-        kneedle = KneeLocator(np.array(scaling_factors), averaging_kernel_mean, direction='decreasing')
+        kneedle = KneeLocator(np.array(scaling_factors),
+                              averaging_kernel_mean, direction='increasing')
         knee_index = np.argwhere(np.array(scaling_factors) == kneedle.knee)
     else:
         knee_index = []
@@ -57,4 +59,4 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on 
     #moutput["Y"] = Y
     #moutput["averaging_kernel"] = averaging_kernel
     #savemat("oi_diag.mat", moutput)
-    return Xb,averaging_kernel,increment,np.sqrt(Sb)
+    return Xb, averaging_kernel, increment, np.sqrt(Sb)
