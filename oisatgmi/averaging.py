@@ -78,7 +78,6 @@ def averaging(startdate: str, enddate: str, reader_obj):
                 list_years)] = np.squeeze(np.nanmean(sat_chosen_old_amf, axis=0))
             sat_new_amf[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(sat_chosen_new_amf, axis=0))
-
     # squeeze it
     sat_averaged_vcd = sat_averaged_vcd.squeeze()
     sat_averaged_error = sat_averaged_error.squeeze()

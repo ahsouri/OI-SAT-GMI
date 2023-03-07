@@ -253,7 +253,7 @@ class downloader(object):
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(-90, 90, -180, 180, '2019-05-01', '2019-05-05')
+    dl_obj = downloader(-90, 90, -180, 180, '2019-05-01', '2019-05-06')
     #dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
     #dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_no2/'))
     dl_obj.merra2_gmi(Path('download_bucket/gmi/'))

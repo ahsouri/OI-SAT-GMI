@@ -37,7 +37,7 @@ def _boxfilter(size_kernel_x, size_kernel_y) -> np.array:
     return np.ones((int(size_kernel_x), int(size_kernel_y)))/(size_kernel_x*size_kernel_y)
 
 
-def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict, grid_size: float, threshold: float):
+def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict, grid_size: float, threshold: float, tri=None):
     '''
         upscaler function
         Input:
@@ -63,7 +63,8 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         points = np.zeros((np.size(X), 2))
         points[:, 0] = X.flatten()
         points[:, 1] = Y.flatten()
-        tri = Delaunay(points)
+        if (tri is None):
+            tri = Delaunay(points)
         # remove to far estimates
         tree = cKDTree(points)
         grid = np.zeros((2, np.shape(ctm_latitude)[

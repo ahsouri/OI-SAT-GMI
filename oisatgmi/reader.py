@@ -98,8 +98,10 @@ def GMI_reader(product_dir: str, YYYYMM: str, gases_to_be_saved: list, frequency
         # read gas concentration
         gas_profile = {}
         for gas in gasnames:
-            gas_profile[gas] = np.flip(_read_nc(
-                fname_gas, gas).astype('float32'), axis=1)
+            temp = np.flip(_read_nc(
+                fname_gas, gas), axis=1)*1e9  # ppbv
+            gas_profile[gas] = temp.astype('float16')
+            temp = []
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, gas_profile,
                              pressure_mid, [], delta_p, ctmtype)
@@ -192,7 +194,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.6  # degree
+        grid_size = 0.15  # degree
         tropomi_hcho = interpolator(
             1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
     # return
@@ -282,7 +284,7 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.3  # degree
+        grid_size = 0.15  # degree
         tropomi_no2 = interpolator(
             1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
     # return
@@ -374,7 +376,7 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 1.0  # degree
+        grid_size = 0.25  # degree
         omi_no2 = interpolator(
             1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return

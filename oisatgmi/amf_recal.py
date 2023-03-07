@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import interpolate
-from interpolator import _interpolosis
+from interpolator import _upscaler
 from scipy.spatial import Delaunay
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
@@ -41,59 +41,45 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
         print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
               " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
         # take the profile and pressure from the right ctm data
+        Mair = 28.97e-3
+        g = 9.80665
+        N_A = 6.02214076e23
         ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )
         ctm_profile = ctm_data[closest_index_day].gas_profile[gas_name][closest_index_hour, :, :, :].squeeze(
         )
         ctm_deltap = ctm_data[closest_index_day].delta_p[closest_index_hour, :, :, :].squeeze(
         )
+        ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
         # see if we need to upscale the ctm fields
         if L2_granule.ctm_upscaled_needed == True:
-            tree = cKDTree(points)
-            grid = np.zeros((2, np.shape(L2_granule.latitude_center)[
-                             0], np.shape(L2_granule.latitude_center)[1]))
-            grid[0, :, :] = L2_granule.longitude_center
-            grid[1, :, :] = L2_granule.latitude_center
-            xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
-            dists, _ = tree.query(xi)
-            size_grid_sat_lon = np.abs(
-                L2_granule.longitude_center[0, 0]-L2_granule.longitude_center[0, 1])
-            size_grid_sat_lat = np.abs(
-                L2_granule.latitude_center[0, 0] - L2_granule.latitude_center[1, 0])
-            threshold_ctm = np.sqrt(
-                size_grid_sat_lon**2 + size_grid_sat_lat**2)
             ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
                                              np.shape(L2_granule.longitude_center)[0], np.shape(
                                                  L2_granule.longitude_center)[1],
-                                             ))
-            ctm_profile_new = np.zeros_like(ctm_mid_pressure_new)
-            ctm_deltap_new = np.zeros_like(ctm_mid_pressure_new)
+                                             ))*np.nan
+            ctm_partial_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
+            sat_coordinate = {}
+            sat_coordinate["Longitude"] = L2_granule.longitude_center
+            sat_coordinate["Latitude"] = L2_granule.latitude_center
             for z in range(0, np.shape(ctm_mid_pressure)[0]):
-                ctm_mid_pressure_new[z, :, :] = _interpolosis(tri, ctm_mid_pressure[z, :, :], L2_granule.longitude_center,
-                                                              L2_granule.latitude_center, 1, dists, threshold_ctm)
-                ctm_profile_new[z, :, :] = _interpolosis(tri, ctm_profile[z, :, :], L2_granule.longitude_center,
-                                                         L2_granule.latitude_center, 1, dists, threshold_ctm)
-                ctm_deltap_new[z, :, :] = _interpolosis(tri, ctm_deltap[z, :, :], L2_granule.longitude_center,
-                                                        L2_granule.latitude_center, 1, dists, threshold_ctm)
-
+                _, _, ctm_mid_pressure_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
+                                                                   ctm_mid_pressure[z, :, :], sat_coordinate, 0.6, 0.8, tri=tri)
+                _, _, ctm_partial_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
+                                                              ctm_deltap[z, :, :]*ctm_profile[z, :, :]/g/Mair*N_A*1e-4*1e-15*100.0*1e-9, sat_coordinate, 0.6, 0.8, tri=tri)
             ctm_mid_pressure = ctm_mid_pressure_new
-            ctm_profile = ctm_profile_new
-            ctm_deltap = ctm_deltap_new
+            ctm_partial_column = ctm_partial_new
         # interpolate vertical grid
-        Mair = 28.97e-3
-        g = 9.80665
-        N_A = 6.02214076e23
         # check if AMF recal is even possible
-        if np.size(L2_granule.scattering_weights) == 1:
+        if (np.size(L2_granule.scattering_weights) == 1):
             print(
                 'no scattering weights were found, recalculation is not possible..just grabbing vcds')
-            ctm_partial_column = (
-                ctm_profile*ctm_deltap/g/Mair*N_A*1e-4*1e-15)*100.0
-            for z in range(0, np.shape(ctm_profile)[0]):
-                ctm_partial_column_tmp = ctm_partial_column[z, :, :].squeeze()
-                ctm_partial_column_tmp[ctm_mid_pressure[z, :, :] <
-                                       L2_granule.tropopause] = np.nan
-                ctm_partial_column[z, :, :] = ctm_partial_column_tmp
+            if np.size(L2_granule.tropopause) != 1:
+                for z in range(0, np.shape(ctm_profile)[0]):
+                    ctm_partial_column_tmp = ctm_partial_column[z, :, :].squeeze(
+                    )
+                    ctm_partial_column_tmp[ctm_mid_pressure[z, :, :] <
+                                           L2_granule.tropopause] = np.nan
+                    ctm_partial_column[z, :, :] = ctm_partial_column_tmp
             # calculate model VCD
             model_VCD = np.nansum(ctm_partial_column, axis=0)
             model_VCD[np.isnan(L2_granule.vcd)] = np.nan
@@ -111,10 +97,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
             for j in range(0, np.shape(L2_granule.vcd)[1]):
                 if np.isnan(L2_granule.vcd[i, j]):
                     continue
-                ctm_profile_tmp = ctm_profile[:, i, j].squeeze()
-                ctm_deltap_tmp = ctm_deltap[:, i, j].squeeze()
-                ctm_partial_column = (
-                    ctm_profile_tmp*ctm_deltap_tmp/g/Mair*N_A*1e-4*1e-15)*100.0
+                ctm_partial_column_tmp = ctm_partial_column[:, i, j].squeeze()
                 ctm_mid_pressure_tmp = ctm_mid_pressure[:, i, j].squeeze()
                 # interpolate
                 f = interpolate.interp1d(
@@ -127,12 +110,12 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 if np.size(L2_granule.tropopause) != 1:
                     interpolated_SW[ctm_mid_pressure_tmp <
                                     L2_granule.tropopause[i, j]] = np.nan
-                    ctm_partial_column[ctm_mid_pressure_tmp <
-                                       L2_granule.tropopause[i, j]] = np.nan
+                    ctm_partial_column_tmp[ctm_mid_pressure_tmp <
+                                           L2_granule.tropopause[i, j]] = np.nan
                 # calculate model SCD
-                model_SCD = np.nansum(interpolated_SW*ctm_partial_column)
+                model_SCD = np.nansum(interpolated_SW*ctm_partial_column_tmp)
                 # calculate model VCD
-                model_VCD[i, j] = np.nansum(ctm_partial_column)
+                model_VCD[i, j] = np.nansum(ctm_partial_column_tmp)
                 # calculate model AMF
                 model_AMF = model_SCD/model_VCD[i, j]
                 # new amf
@@ -143,6 +126,7 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
         sat_data[counter].new_amf = new_amf
         sat_data[counter].vcd = sat_data[counter].scd/new_amf
         model_VCD[np.isnan(L2_granule.vcd)] = np.nan
+        model_VCD[np.isinf(L2_granule.vcd)] = np.nan
         sat_data[counter].ctm_vcd = model_VCD
         sat_data[counter].ctm_time_at_sat = time_ctm[closest_index]
 

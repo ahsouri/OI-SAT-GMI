@@ -98,7 +98,7 @@ def topdf(fname: str, pdf_output: str):
     map_plots = sorted(glob.glob('temp/*' + fname + '*.png'))
     for fname in map_plots:
         pdf.add_page()
-        pdf.image(fname, h=pdf.eph, w=pdf.epw)
+        pdf.image(fname, h=pdf.eph, w=pdf.epw+20)
 
     # writing
     if not os.path.exists('report'):
@@ -121,13 +121,13 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
     plotter(lon, lat, sat_vcd, 'temp/ctm_vcd_sat_used_' + fname +
             '.png', 'Satellite Observation (Y)', 1, 0.0, 10.0)
     plotter(lon, lat, sat_err, 'temp/ctm_vcd_sat_zerr_' + fname +
-            '.png', 'Satellite Error (Y)', 1, 0.0, 10.0)
+            '.png', 'Satellite Error (So)', 1, 0.0, 4.0)
     plotter(lon, lat, increment, 'temp/increment_' +
             fname + '.png', 'Increment', 1, -5.0, 5.0)
     plotter(lon, lat, averaging_kernel, 'temp/dak_' +
             fname + '.png', 'Averaging Kernels', 2, 0.0, 1.0)
     plotter(lon, lat, error_OI, 'temp/error_' +
-            fname + '.png', 'OI estimate error', 1, 0.0, 10.0)
+            fname + '.png', 'OI estimate error', 1, 0.0, 4.0)
     plotter(lon, lat, new_amf, 'temp/new_amf_' +
             fname + '.png', 'new AMF', 2, 0.0, 4)
     plotter(lon, lat, old_amf, 'temp/old_amf_' +
