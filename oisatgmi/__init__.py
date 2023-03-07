@@ -1,1 +1,1 @@
-from .oisatgmi import oisatgmi
+from .driver import oisatgmi

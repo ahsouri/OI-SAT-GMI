@@ -1,0 +1,12 @@
+Cartopy==0.21.1
+certifi==2022.9.14
+fpdf==1.7.2
+geos==0.2.3
+joblib==1.1.0
+kneed==0.8.2
+matplotlib==3.5.2
+netCDF4==1.6.3
+numpy==1.21.5
+requests==2.28.1
+scipy==1.9.1
+urllib3==1.26.11
