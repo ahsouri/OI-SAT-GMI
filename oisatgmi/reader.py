@@ -151,7 +151,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     # read total amf
     amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                'formaldehyde_tropospheric_air_mass_factor')
-    # read trop no2
+    # read total hcho
     vcd = _read_group_nc(fname, ['PRODUCT'],
                          'formaldehyde_tropospheric_vertical_column')
     scd = _read_group_nc(fname, ['PRODUCT'], 'formaldehyde_tropospheric_vertical_column') *\
@@ -201,11 +201,12 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     return tropomi_hcho
 
 
-def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite:
+def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite:
     '''
        TROPOMI NO2 L2 reader
        Inputs:
              fname [str]: the name path of the L2 file
+             trop [bool]: true for considering the tropospheric region only
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
@@ -228,13 +229,26 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
                                               'GEOLOCATIONS'], 'longitude_bounds').astype('float32')
     # read total amf
     amf_total = _read_group_nc(fname, ['PRODUCT'], 'air_mass_factor_total')
-    # read trop no2
-    vcd = _read_group_nc(
-        fname, ['PRODUCT'], 'nitrogendioxide_total_column')
-    scd = _read_group_nc(fname, ['PRODUCT'], 'nitrogendioxide_total_column') *\
-        _read_group_nc(fname, ['PRODUCT'], 'air_mass_factor_total')
+    # read no2
+    if trop == False:
+        vcd = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'nitrogendioxide_total_column')
+        scd = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'nitrogendioxide_slant_column_density')
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
+                                     'nitrogendioxide_total_column_precision')
+    else:
+        vcd = _read_group_nc(
+            fname, ['PRODUCT'], 'nitrogendioxide_tropospheric_column')
+        scd = vcd*_read_group_nc(
+            fname, ['PRODUCT'], 'air_mass_factor_troposphere')
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['PRODUCT'],
+                                     'nitrogendioxide_tropospheric_column_precision')
     vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
     scd = (scd*6.02214*1e19*1e-15).astype('float16')
+    uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
     # read quality flag
     quality_flag = _read_group_nc(
         fname, ['PRODUCT'], 'qa_value').astype('float16')
@@ -264,38 +278,37 @@ def tropomi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> 
     SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
                  (SWs > 100.0) | (SWs < 0.0))] = 0.0
     # read the tropopause layer index
-    # trop_layer = _read_group_nc(
-    #    fname, ['PRODUCT'], 'tm5_tropopause_layer_index')
-    #tropopause = np.zeros_like(trop_layer).astype('float16')
-    # for i in range(0, np.shape(trop_layer)[0]):
-    #    for j in range(0, np.shape(trop_layer)[1]):
-    #        if (trop_layer[i, j] > 0 and trop_layer[i, j] < 34):
-    #            tropopause[i, j] = p_mid[trop_layer[i, j], i, j]
-    #        else:
-    #            tropopause[i, j] = np.nan
-    tropopause = np.empty((1))
-    # read the precision
-    uncertainty = _read_group_nc(fname, ['PRODUCT'],
-                                 'nitrogendioxide_total_column_precision')
-    uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
+    if trop == True:
+        trop_layer = _read_group_nc(
+            fname, ['PRODUCT'], 'tm5_tropopause_layer_index')
+        tropopause = np.zeros_like(trop_layer).astype('float16')
+        for i in range(0, np.shape(trop_layer)[0]):
+            for j in range(0, np.shape(trop_layer)[1]):
+                if (trop_layer[i, j] > 0 and trop_layer[i, j] < 34):
+                    tropopause[i, j] = p_mid[trop_layer[i, j], i, j]
+                else:
+                    tropopause[i, j] = np.nan
+    else:
+        tropopause = np.empty((1))
     # populate tropomi class
     tropomi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
     ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.15  # degree
+        grid_size = 1.0  # degree
         tropomi_no2 = interpolator(
             1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
     # return
     return tropomi_no2
 
 
-def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite:
+def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite:
     '''
        OMI NO2 L2 reader
        Inputs:
              fname [str]: the name path of the L2 file
+             trop [bool]: true for considering the tropospheric region only
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
@@ -314,15 +327,28 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
         fname, ['GEOLOCATION_DATA'], 'FoV75CornerLatitude').astype('float32')
     longitude_corner = _read_group_nc(
         fname, ['GEOLOCATION_DATA'], 'FoV75CornerLongitude').astype('float32')
-    # read trop no2
-    vcd = _read_group_nc(
-        fname, ['SCIENCE_DATA'], 'ColumnAmountNO2')
-    scd = _read_group_nc(fname, ['SCIENCE_DATA'], 'AmfTrop') *\
-        _read_group_nc(fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Trop') +\
-        _read_group_nc(fname, ['SCIENCE_DATA'], 'AmfStrat') *\
-        _read_group_nc(fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Strat')
+    # read no2
+    if trop == False:
+        vcd = _read_group_nc(
+            fname, ['SCIENCE_DATA'], 'ColumnAmountNO2')
+        scd = _read_group_nc(fname, ['SCIENCE_DATA'], 'AmfTrop') *\
+            _read_group_nc(fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Trop') +\
+            _read_group_nc(fname, ['SCIENCE_DATA'], 'AmfStrat') *\
+            _read_group_nc(fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Strat')
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['SCIENCE_DATA'],
+                                     'ColumnAmountNO2Std')
+    else:
+        vcd = _read_group_nc(
+            fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Trop')
+        scd = _read_group_nc(fname, ['SCIENCE_DATA'], 'AmfTrop') *\
+            _read_group_nc(fname, ['SCIENCE_DATA'], 'ColumnAmountNO2Trop')
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['SCIENCE_DATA'],
+                                     'ColumnAmountNO2TropStd')
     vcd = (vcd*1e-15).astype('float16')
     scd = (scd*1e-15).astype('float16')
+    uncertainty = (uncertainty*1e-15).astype('float16')
     # read quality flag
     cf_fraction = quality_flag_temp = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'CloudFraction').astype('float16')
@@ -363,27 +389,25 @@ def omi_reader_no2(fname: str, ctm_models_coordinate=None, read_ak=True) -> sate
     SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
                  (SWs > 100.0) | (SWs < 0.0))] = 0.0
     # read the tropopause pressure
-    # tropopause = _read_group_nc(
-    #    fname, ['ANCILLARY_DATA'], 'TropopausePressure').astype('float16')
-    tropopause = np.empty((1))
-    # read the precision
-    uncertainty = _read_group_nc(fname, ['SCIENCE_DATA'],
-                                 'ColumnAmountNO2Std')
-    uncertainty = (uncertainty*1e-15).astype('float16')
+    if trop == True:
+        tropopause = _read_group_nc(
+            fname, ['ANCILLARY_DATA'], 'TropopausePressure').astype('float16')
+    else:
+        tropopause = np.empty((1))
     # populate omi class
     omi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
     ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.25  # degree
+        grid_size = 1.0  # degree
         omi_no2 = interpolator(
             1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return
     return omi_no2
 
 
-def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, read_ak=True, num_job=1):
+def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
     '''
         reading tropomi data
              product_dir [str]: the folder containing the tropomi data
@@ -392,6 +416,7 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
                                          "HCHO"
              ctm_models_coordinate [dict]: the ctm coordinates
              YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             trop [bool]: true for considering the tropospheric region only
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
              num_job [int]: the number of jobs for parallel computation
         Output [tropomi]: the tropomi @dataclass
@@ -402,14 +427,14 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_no2)(
-            L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+            L2_files[k], trop, ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     elif satellite_product_name.split('_')[-1] == 'HCHO':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_hcho)(
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
 
 
-def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, read_ak=True, num_job=1):
+def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
     '''
         reading omi data
              product_dir [str]: the folder containing the tropomi data
@@ -418,6 +443,7 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
                                          "HCHO"
              ctm_models_coordinate [dict]: the ctm coordinates
              YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             trop [bool]: true for considering the tropospheric region only
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
              num_job [int]: the number of jobs for parallel computation
         Output [tropomi]: the tropomi @dataclass
@@ -430,7 +456,7 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_no2)(
-            L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+            L2_files[k], trop, ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     elif satellite_product_name.split('_')[-1] == 'HCHO':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_hcho)(
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
@@ -438,6 +464,7 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
 
 
 class readers(object):
+
     def __init__(self) -> None:
         pass
 
@@ -469,7 +496,7 @@ class readers(object):
         self.ctm_product_dir = product_dir
         self.ctm_product = product_name
 
-    def read_satellite_data(self, YYYYMM: str, read_ak=True, num_job=1):
+    def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1):
         '''
             read L2 satellite data
             Input:
@@ -478,6 +505,7 @@ class readers(object):
                               'TROPOMI'
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
+             trop[bool]: true for only including the tropospheric region (relevant for NO2 only)
              num_job [int]: the number of jobs for parallel computation
         '''
         satellite = self.satellite_product_name.split('_')[0]
@@ -487,11 +515,11 @@ class readers(object):
         if satellite == 'TROPOMI':
             self.sat_data = tropomi_reader(self.satellite_product_dir.as_posix(),
                                            self.satellite_product_name, ctm_models_coordinate,
-                                           YYYYMM,  read_ak=read_ak, num_job=num_job)
+                                           YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         elif satellite == 'OMI':
             self.sat_data = omi_reader(self.satellite_product_dir.as_posix(),
                                        self.satellite_product_name, ctm_models_coordinate,
-                                       YYYYMM,  read_ak=read_ak, num_job=num_job)
+                                       YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
@@ -518,7 +546,7 @@ if __name__ == "__main__":
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data('201905', ['NO2'], frequency_opt='3-hourly')
     reader_obj.add_satellite_data(
-        'OMI_NO2', Path('download_bucket/omi_no2/subset/'))
+        'TROPOMI_NO2', Path('download_bucket/trop_no2'))
     reader_obj.read_satellite_data('201905', read_ak=True, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
