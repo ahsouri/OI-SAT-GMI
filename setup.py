@@ -7,7 +7,7 @@ with open('requirements.txt') as fp:
     install_requires = fp.read()
 
 setup(name='OISATGMI',
-      version='0.0.1',
+      version='0.0.2',
       description='Optimal Interpolation Between GMI and a Satellite-based Observations',
       long_description=readme,
       long_description_content_type='text/markdown',
