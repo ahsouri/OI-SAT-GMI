@@ -30,8 +30,9 @@ class ctm_model:
     latitude: np.ndarray
     longitude: np.ndarray
     time: list
-    gas_profile: dict
+    gas_profile: np.ndarray
     pressure_mid: np.ndarray
     tempeature_mid: np.ndarray
     delta_p: np.ndarray
     ctmtype: str
+    averaged: bool

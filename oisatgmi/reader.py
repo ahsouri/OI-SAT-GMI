@@ -48,7 +48,7 @@ def _read_group_nc(filename, group, var):
     return np.squeeze(out)
 
 
-def GMI_reader(product_dir: str, YYYYMM: str, gases_to_be_saved: list, frequency_opt='3-hourly', num_job=1) -> ctm_model:
+def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_opt='3-hourly', num_job=1) -> ctm_model:
     '''
        GMI reader
        Inputs:
@@ -64,7 +64,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, gases_to_be_saved: list, frequency
              gmi_fields [ctm_model]: a dataclass format (see config.py)
     '''
     # a nested function
-    def gmi_reader_wrapper(fname_met: str, fname_gas: str, gasnames: list) -> ctm_model:
+    def gmi_reader_wrapper(fname_met: str, fname_gas: str, gasname: str) -> ctm_model:
         # read the data
         print("Currently reading: " + fname_met.split('/')[-1])
         ctmtype = "GMI"
@@ -96,15 +96,13 @@ def GMI_reader(product_dir: str, YYYYMM: str, gases_to_be_saved: list, frequency
         pressure_mid = _read_nc(fname_met, 'PL').astype('float16')/100.0
         pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
         # read gas concentration
-        gas_profile = {}
-        for gas in gasnames:
-            temp = np.flip(_read_nc(
-                fname_gas, gas), axis=1)*1e9  # ppbv
-            gas_profile[gas] = temp.astype('float16')
-            temp = []
+        temp = np.flip(_read_nc(
+                fname_gas, gasname), axis=1)*1e9  # ppbv
+        gas_profile = temp.astype('float16')
+        temp = []
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, gas_profile,
-                             pressure_mid, [], delta_p, ctmtype)
+                             pressure_mid, [], delta_p, ctmtype, False)
         return gmi_data
 
     if frequency_opt == '3-hourly':
@@ -118,7 +116,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, gases_to_be_saved: list, frequency
                 "the data are not consistent")
         # define gas profiles to be saved
         outputs = Parallel(n_jobs=num_job)(delayed(gmi_reader_wrapper)(
-            tavg3_3d_met_files[k], tavg3_3d_gas_files[k], gases_to_be_saved) for k in range(len(tavg3_3d_met_files)))
+            tavg3_3d_met_files[k], tavg3_3d_gas_files[k], gas_to_be_saved) for k in range(len(tavg3_3d_met_files)))
         return outputs
 
 
@@ -400,7 +398,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 1.0  # degree
+        grid_size = 0.7  # degree
         omi_no2 = interpolator(
             1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return
@@ -523,12 +521,12 @@ class readers(object):
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
-    def read_ctm_data(self, YYYYMM: str, gases: list, frequency_opt: str, num_job=1):
+    def read_ctm_data(self, YYYYMM: str, gas: str, frequency_opt: str, averaged=False, num_job=1):
         '''
             read ctm data
             Input:
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
-             gases_to_be_saved [list]: name of gases to be loaded. e.g., ['NO2']
+             gases_to_be_saved [str]: name of the gas to be loaded. e.g., 'NO2'
              frequency_opt: the frequency of data
                         1 -> hourly 
                         2 -> 3-hourly
@@ -536,15 +534,42 @@ class readers(object):
              num_job [int]: the number of jobs for parallel computation
         '''
         if self.ctm_product == 'GMI':
-            self.ctm_data = GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gases,
-                                       frequency_opt=frequency_opt, num_job=num_job)
+            ctm_data = GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas,
+                                  frequency_opt=frequency_opt, num_job=num_job)
+            if averaged == True:
+                # constant variables
+                print("Averaging CTM files ...")
+                latitude = ctm_data[0].latitude
+                longitude = ctm_data[0].longitude
+                time = ctm_data[0].time
+                ctm_type = 'GMI'
+                # averaging over variable things
+                gas_profile = []
+                pressure_mid = []
+                delta_p = []
+                for ctm in ctm_data:
+                    gas_profile.append(ctm.gas_profile)
+                    pressure_mid.append(ctm.pressure_mid)
+                    delta_p.append(ctm.delta_p)
+
+                gas_profile = np.nanmean(np.array(gas_profile), axis=0)
+                pressure_mid = np.nanmean(np.array(pressure_mid), axis=0)
+                delta_p = np.nanmean(np.array(delta_p), axis=0)
+                # shape up the ctm class
+                self.ctm_data = []
+                self.ctm_data.append(ctm_model(latitude, longitude, time, gas_profile,
+                                          pressure_mid, [], delta_p, ctm_type, True))
+                ctm_data = []
+            else:
+                self.ctm_data = ctm_data
+                ctm_data = []
 
 
 # testing
 if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
-    reader_obj.read_ctm_data('201905', ['NO2'], frequency_opt='3-hourly')
+    reader_obj.read_ctm_data('201905', 'NO2', frequency_opt='3-hourly')
     reader_obj.add_satellite_data(
         'TROPOMI_NO2', Path('download_bucket/trop_no2'))
     reader_obj.read_satellite_data('201905', read_ak=True, num_job=1)

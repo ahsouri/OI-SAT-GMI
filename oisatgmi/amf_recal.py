@@ -2,14 +2,12 @@ import numpy as np
 from scipy import interpolate
 from interpolator import _upscaler
 from scipy.spatial import Delaunay
-from scipy.interpolate.interpnd import _ndim_coords_from_arrays
-from scipy.spatial import cKDTree
 
-
-def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
+def amf_recal(ctm_data: list, sat_data: list):
     print('AMF Recal begins...')
     # list the time in ctm_data
     time_ctm = []
+    time_ctm_hour_only = []
     time_ctm_datetype = []
     for ctm_granule in ctm_data:
         time_temp = ctm_granule.time
@@ -18,8 +16,14 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
                 time_temp[n].day + time_temp[n].hour/24.0 + \
                 time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
             time_ctm.append(time_temp2)
+            # I do this to save only hour in case of monthly-avereaged CTMs:
+            time_temp2 =  time_temp[n].hour/24.0 + \
+                time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
+            time_ctm_hour_only.append(time_temp2)
         time_ctm_datetype.append(ctm_granule.time)
+
     time_ctm = np.array(time_ctm)
+    time_ctm_hour_only = np.array(time_ctm_hour_only)
     # define the triangulation if we need to interpolate ctm_grid to sat_grid
     # because ctm_grid < sat_grid
     points = np.zeros((np.size(ctm_data[0].latitude), 2))
@@ -29,24 +33,33 @@ def amf_recal(ctm_data: list, sat_data: list, gas_name: str):
     # loop over the satellite list
     counter = 0
     for L2_granule in sat_data:
-        time_sat = L2_granule.time
-        time_sat = time_sat.year*10000 + time_sat.month*100 +\
-            time_sat.day + time_sat.hour/24.0 + time_sat.minute / \
-            60.0/24.0 + time_sat.second/3600.0/24.0
+        time_sat_datetime = L2_granule.time
+        time_sat = time_sat_datetime.year*10000 + time_sat_datetime.month*100 +\
+            time_sat_datetime.day + time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
+            60.0/24.0 + time_sat_datetime.second/3600.0/24.0
+        time_sat_hourl_only = time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
+            60.0/24.0 + time_sat_datetime.second/3600.0/24.0
         # find the closest day
-        closest_index = np.argmin(np.abs(time_sat - time_ctm))
-        # find the closest hour (this only works for 3-hourly frequency)
-        closest_index_day = int(np.floor(closest_index/8.0))
-        closest_index_hour = int(closest_index % 8)
+        if ctm_data[0].averaged == False:
+           closest_index = np.argmin(np.abs(time_sat - time_ctm))
+           # find the closest hour (this only works for 3-hourly frequency)
+           closest_index_day = int(np.floor(closest_index/8.0))
+           closest_index_hour = int(closest_index % 8)
+        else:
+           closest_index = np.argmin(np.abs(time_sat_hourl_only - time_ctm_hour_only))
+           # find the closest hour 
+           closest_index_hour = int(closest_index)
+           closest_index_day = int(0)
+
         print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
-              " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
+              " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))        
         # take the profile and pressure from the right ctm data
         Mair = 28.97e-3
         g = 9.80665
         N_A = 6.02214076e23
         ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
         )
-        ctm_profile = ctm_data[closest_index_day].gas_profile[gas_name][closest_index_hour, :, :, :].squeeze(
+        ctm_profile = ctm_data[closest_index_day].gas_profile[closest_index_hour, :, :, :].squeeze(
         )
         ctm_deltap = ctm_data[closest_index_day].delta_p[closest_index_hour, :, :, :].squeeze(
         )

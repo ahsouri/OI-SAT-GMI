@@ -16,11 +16,12 @@ class oisatgmi(object):
     def __init__(self) -> None:
         pass
 
-    def read_data(self, ctm_type: str, ctm_path: Path, ctm_gas_name: list, ctm_frequency: str, sat_type: str, sat_path: Path, YYYYMM: str, read_ak=True, trop=False, num_job=1):
+    def read_data(self, ctm_type: str, ctm_path: Path, ctm_gas_name: str, ctm_frequency: str, 
+                  sat_type: str, sat_path: Path, YYYYMM: str, averaged = False, read_ak=True, trop=False, num_job=1):
         reader_obj = readers()
         reader_obj.add_ctm_data(ctm_type, ctm_path)
         reader_obj.read_ctm_data(YYYYMM, ctm_gas_name,
-                                 frequency_opt=ctm_frequency)
+                                 frequency_opt=ctm_frequency, averaged = averaged, num_job=num_job)
         reader_obj.add_satellite_data(
             sat_type, sat_path)
         reader_obj.read_satellite_data(
@@ -32,7 +33,7 @@ class oisatgmi(object):
     def recal_amf(self):
 
         self.reader_obj.sat_data = amf_recal(
-            self.reader_obj.ctm_data, self.reader_obj.sat_data, self.gasname)
+            self.reader_obj.ctm_data, self.reader_obj.sat_data)
 
     def average(self, startdate: str, enddate: str):
         '''
@@ -126,8 +127,8 @@ class oisatgmi(object):
 if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
-    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), ['NO2'], '3-hourly', 'OMI_NO2',
-                           Path('download_bucket/omi_no2'), '201905', read_ak=True, trop=True, num_job=1)
+    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'NO2', '3-hourly', 'OMI_NO2',
+                           Path('download_bucket/omi_no2'), '201905', averaged=True, read_ak=True, trop=False, num_job=1)
     oisatgmi_obj.recal_amf()
     oisatgmi_obj.average('2019-05-01', '2019-06-01')
     oisatgmi_obj.oi()
