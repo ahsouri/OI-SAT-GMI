@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import interpolate
-from interpolator import _upscaler
+from oisatgmi.interpolator import _upscaler
 from scipy.spatial import Delaunay
 
 def amf_recal(ctm_data: list, sat_data: list):

@@ -53,7 +53,7 @@ for year in range(np.min(list_years), np.max(list_years)+1):
         slurm_cmd += '#SBATCH --mem=50G \n'
         slurm_cmd += '#SBATCH -t 1:00:00 \n'
         slurm_cmd += '#SBATCH -o oi_gmi-%j.out \n'
-        slurm_cmd += '#SBATCH -r oi_gmi-%j.err \n'
+        slurm_cmd += '#SBATCH -e oi_gmi-%j.err \n'
         slurm_cmd += python_bin + ' job.py ' + str(year) + ' ' + str(month)
         file.writelines(slurm_cmd)
         file.close()

@@ -1,11 +1,10 @@
 import numpy as np
-from config import satellite
+from oisatgmi.config import satellite
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from scipy.interpolate import RBFInterpolator
 from scipy import signal
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
-
 from scipy.spatial import cKDTree
 
 

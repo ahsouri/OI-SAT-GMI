@@ -4,8 +4,8 @@ import datetime
 import glob
 from joblib import Parallel, delayed
 from netCDF4 import Dataset
-from config import satellite, ctm_model
-from interpolator import interpolator
+from oisatgmi.config import satellite, ctm_model
+from oisatgmi.interpolator import interpolator
 import warnings
 from scipy.io import savemat
 
