@@ -10,6 +10,9 @@ ctm_dir: 'download_bucket/gmi/'
 # the frequency of CTM files (3-hourly)
 ctm_freq: '3-hourly'
 
+# should we average CTMs? (reduce memory overhead by a lot)
+ctm_avg: True
+
 # target gas (NO2, HCHO)
 gas: 'NO2'
 
@@ -25,15 +28,15 @@ troposphere_only: True
 # set the path of L2 files
 sat_dir: 'download_bucket/omi_no2'
 
-# starting date (YYYY-MM-DD) and ending date (YYYY-MM-DD)
-start_date: '2019-05-01'
-end_date:   '2019-06-01'
+# starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
+start_date: '2019-05'
+end_date:   '2019-06'
 
 # output folder for PDF reports
 output_pdf_dir: 'report'
 
 # output folder for NC diags
-output_pdf_dir: 'diag'
+output_nc_dir: 'diag'
 
 # number of jobs
 num_job: 24

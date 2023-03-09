@@ -1,4 +1,4 @@
-from setuptools import setup,find_packages
+from setuptools import setup
 
 with open('README.md') as f:
     readme = f.read()
@@ -7,8 +7,8 @@ with open('requirements.txt') as fp:
     install_requires = fp.read()
 
 setup(name='OISATGMI',
-      version='0.0.2',
-      description='Optimal Interpolation Between GMI and a Satellite-based Observations',
+      version='0.0.4',
+      description='Optimal Interpolation Between GMI and Satellite-based Observations',
       long_description=readme,
       long_description_content_type='text/markdown',
       author='Amir Souri',

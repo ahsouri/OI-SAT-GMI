@@ -7,4 +7,4 @@
 #SBATCH -t 1:00:00 
 #SBATCH -o oi_gmi-%j.out 
 #SBATCH -r oi_gmi-%j.err 
-/home/asouri/anaconda3/bin/python3.9 job.py 2019 5
+/home/asouri/anaconda3/bin/python3.9 job.py 2019 6

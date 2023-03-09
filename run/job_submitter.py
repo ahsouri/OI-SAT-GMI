@@ -23,18 +23,16 @@ python_bin = ctrl_opts['python_bin']
 
 # convert dates to datetime
 start_date = datetime.date(int(startdate[0:4]), int(
-    startdate[5:7]), int(startdate[8:10]))
+    startdate[5:7]),1)
 end_date = datetime.date(int(enddate[0:4]), int(
-    enddate[5:7]), int(enddate[8:10]))
-list_days = []
+    enddate[5:7]),26)
 list_months = []
 list_years = []
 for single_date in _daterange(start_date, end_date):
-    list_days.append(single_date.day)
     list_months.append(single_date.month)
     list_years.append(single_date.year)
 
-list_days = np.array(list_days)
+
 list_months = np.array(list_months)
 list_years = np.array(list_years)
 
@@ -49,13 +47,15 @@ for year in range(np.min(list_years), np.max(list_years)+1):
                     '_' + str(month) + '.j', 'w')
         slurm_cmd = '#!bin/bash \n'
         slurm_cmd += '#SBATCH -J oi_gmi \n'
-        slurm_cmd += '#SBATCH --constraint="[cas|sky]" \n'
         slurm_cmd += '#SBATCH --account=s1043 \n'
         slurm_cmd += '#SBATCH --ntasks=1 \n'
         slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
-        slurm_cmd += '#SBATCH --mem=100G \n'
-        slurm_cmd += '#SBATCH -t 2:00:00 \n'
+        slurm_cmd += '#SBATCH --mem=50G \n'
+        slurm_cmd += '#SBATCH -t 1:00:00 \n'
         slurm_cmd += '#SBATCH -o oi_gmi-%j.out \n'
         slurm_cmd += '#SBATCH -r oi_gmi-%j.err \n'
         slurm_cmd += python_bin + ' job.py ' + str(year) + ' ' + str(month)
         file.writelines(slurm_cmd)
+        file.close()
+        os.system('sbatch ' + 'run/jobs/' + 'job_' + str(year) +
+                    '_' + str(month) + '.j')

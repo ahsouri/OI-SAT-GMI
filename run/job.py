@@ -13,23 +13,25 @@ with open('run/control.yml', 'r') as stream:
 ctm_name = ctrl_opts['ctm_name']
 ctm_dir = ctrl_opts['ctm_dir']
 ctm_freq = ctrl_opts['ctm_freq']
+ctm_avg = ctrl_opts['ctm_avg']
 gas = ctrl_opts['gas']
 sensor = ctrl_opts['sensor']
 read_AK = ctrl_opts['read_AK']
 troposphere_only = ctrl_opts['troposphere_only']
 sat_dir = ctrl_opts['sat_dir']
 output_pdf_dir = ctrl_opts['output_pdf_dir']
+output_nc_dir = ctrl_opts['output_nc_dir']
 num_job = ctrl_opts['num_job']
 
 year = sys.argv[1]
 month = sys.argv[2]
 
 oisatgmi_obj = oisatgmi()
-oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), [gas], ctm_freq, sensor+'_'+gas,
-                       Path(sat_dir), str(year) + f"{month:02}", read_ak=read_AK,
+oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
+                       Path(sat_dir), str(year) + f"{month:02}", averaged=ctm_avg, read_ak=read_AK,
                        trop=troposphere_only, num_job=int(num_job))
 oisatgmi_obj.recal_amf()
-oisatgmi_obj.average('2019-05-01', '2019-06-01')
+oisatgmi_obj.average(str(year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01')
 oisatgmi_obj.oi()
-oisatgmi_obj.reporting('NO2_201905')
-oisatgmi_obj.write_to_nc('NO2_201905')
+oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}", output_pdf_dir)
+oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}", output_nc_dir)
