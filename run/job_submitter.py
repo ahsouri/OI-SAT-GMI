@@ -10,7 +10,7 @@ def _daterange(start_date, end_date):
 
 
 # Read the control file
-with open('run/control.yml', 'r') as stream:
+with open('./control.yml', 'r') as stream:
     try:
         ctrl_opts = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
@@ -37,13 +37,13 @@ list_months = np.array(list_months)
 list_years = np.array(list_years)
 
 # submit jobs per month per year (12 jobs per year)
-if not os.path.exists('run/jobs'):
-    os.makedirs('run/jobs')
+if not os.path.exists('./jobs'):
+    os.makedirs('./jobs')
 for year in range(np.min(list_years), np.max(list_years)+1):
     for month in range(np.min(list_months), np.max(list_months)+1):
         # slurm command
         # Opening a file
-        file = open('run/jobs/' + 'job_' + str(year) +
+        file = open('./jobs/' + 'job_' + str(year) +
                     '_' + str(month) + '.j', 'w')
         slurm_cmd = '#!bin/bash \n'
         slurm_cmd += '#SBATCH -J oi_gmi \n'
@@ -54,8 +54,8 @@ for year in range(np.min(list_years), np.max(list_years)+1):
         slurm_cmd += '#SBATCH -t 1:00:00 \n'
         slurm_cmd += '#SBATCH -o oi_gmi-%j.out \n'
         slurm_cmd += '#SBATCH -e oi_gmi-%j.err \n'
-        slurm_cmd += python_bin + ' job.py ' + str(year) + ' ' + str(month)
+        slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month)
         file.writelines(slurm_cmd)
         file.close()
-        os.system('sbatch ' + 'run/jobs/' + 'job_' + str(year) +
+        os.system('sbatch ' + './jobs/' + 'job_' + str(year) +
                     '_' + str(month) + '.j')

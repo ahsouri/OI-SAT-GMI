@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 # Read the control file
-with open('run/control.yml', 'r') as stream:
+with open('./control.yml', 'r') as stream:
     try:
         ctrl_opts = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
