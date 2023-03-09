@@ -1,0 +1,40 @@
+# set your python executable path
+python_bin: '/home/asouri/anaconda3/bin/python3.9'
+
+# set the name of CTM model (GMI)
+ctm_name: 'GMI'
+
+# set the path of CTM netcdf files (either relative or absolute)
+ctm_dir: 'download_bucket/gmi/'
+
+# the frequency of CTM files (3-hourly)
+ctm_freq: '3-hourly'
+
+# target gas (NO2, HCHO)
+gas: 'NO2'
+
+# the sensor name (OMI, TROPOMI)
+sensor: 'OMI'
+
+# consider scattering weights (or AKs) (memory intensive)
+read_AK: True
+
+# total column or tropospheric column (only applicable for NO2)
+troposphere_only: True
+
+# set the path of L2 files
+sat_dir: 'download_bucket/omi_no2'
+
+# starting date (YYYY-MM-DD) and ending date (YYYY-MM-DD)
+start_date: '2019-05-01'
+end_date:   '2019-06-01'
+
+# output folder for PDF reports
+output_pdf_dir: 'report'
+
+# output folder for NC diags
+output_pdf_dir: 'diag'
+
+# number of jobs
+num_job: 24
+
