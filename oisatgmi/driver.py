@@ -50,7 +50,7 @@ class oisatgmi(object):
         self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
                                                                                            (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
 
-    def reporting(self, fname: str):
+    def reporting(self, fname: str, folder='report'):
 
         # pick the right latitude and longitude
         # the right one is the coarsest one so
@@ -64,19 +64,19 @@ class oisatgmi(object):
             lon = self.reader_obj.ctm_data[0].longitude
 
         report(lon, lat, self.ctm_averaged_vcd, self.ctm_averaged_vcd_corrected,
-               self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.new_amf, self.old_amf, fname)
+               self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.new_amf, self.old_amf, fname, folder)
 
-    def write_to_nc(self, output_file):
+    def write_to_nc(self, output_file, output_folder='diag'):
         ''' 
         Write the final results to a netcdf
         ARGS:
             output_file (char): the name of file to be outputted
         '''
         # writing
-        if not os.path.exists('diag'):
-            os.makedirs('diag')
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
 
-        ncfile = Dataset('diag/' + output_file + '.nc', 'w')
+        ncfile = Dataset(output_folder + '/' + output_file + '.nc', 'w')
 
         # create the x and y dimensions.
         ncfile.createDimension('x', np.shape(self.sat_averaged_vcd)[0])
@@ -132,5 +132,5 @@ if __name__ == "__main__":
     oisatgmi_obj.recal_amf()
     oisatgmi_obj.average('2019-05-01', '2019-06-01')
     oisatgmi_obj.oi()
-    oisatgmi_obj.reporting('NO2_201905')
-    oisatgmi_obj.write_to_nc('NO2_201905')
+    oisatgmi_obj.reporting('NO2_201905','report')
+    oisatgmi_obj.write_to_nc('NO2_201905','diag')

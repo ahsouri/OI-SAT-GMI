@@ -52,7 +52,7 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
     plt.close()
 
 
-def topdf(fname: str, pdf_output: str):
+def topdf(fname: str, folder:str, pdf_output: str):
     ''' 
     save all pngs to a pdf report
     '''
@@ -101,15 +101,15 @@ def topdf(fname: str, pdf_output: str):
         pdf.image(fname, h=pdf.eph, w=pdf.epw+20)
 
     # writing
-    if not os.path.exists('report'):
-        os.makedirs('report')
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
-    pdf.output('report/' + pdf_output, 'F')
+    pdf.output(folder + '/' + pdf_output, 'F')
 
 
 def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd_after: np.ndarray,
            sat_vcd: np.ndarray, sat_err: np.ndarray, increment: np.ndarray, averaging_kernel: np.ndarray, error_OI: np.ndarray,
-           new_amf: np.ndarray, old_amf: np.ndarray, fname):
+           new_amf: np.ndarray, old_amf: np.ndarray, fname:str, ffolder: str):
     '''
     '''
     if not os.path.exists('temp'):
@@ -133,5 +133,5 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
     plotter(lon, lat, old_amf, 'temp/old_amf_' +
             fname + '.png', 'old AMF', 2, 0.0, 4)
 
-    topdf(fname, 'OI_report_' + fname + '.pdf')
+    topdf(fname, ffolder, 'OI_report_' + fname + '.pdf')
     os.system('rm -rf temp/*.png')

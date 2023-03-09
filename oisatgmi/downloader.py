@@ -147,7 +147,7 @@ class downloader(object):
             cmd = "chmod 0600 ~/.netrc"
             os.system(cmd)
             cmd = "touch ~/.urs_cookies"
-            os.system
+            os.system(cmd)
         # Create a PoolManager instance to make requests.
         http = urllib3.PoolManager(
             cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
