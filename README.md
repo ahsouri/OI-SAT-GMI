@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/605173284.svg)](https://zenodo.org/badge/latestdoi/605173284)
 # OI-SAT-GMI
 Optimal interpolation between satellites and NASA GMI models
 
