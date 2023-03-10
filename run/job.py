@@ -23,8 +23,8 @@ output_pdf_dir = ctrl_opts['output_pdf_dir']
 output_nc_dir = ctrl_opts['output_nc_dir']
 num_job = ctrl_opts['num_job']
 
-year = sys.argv[1]
-month = sys.argv[2]
+year = int(sys.argv[1])
+month = int(sys.argv[2])
 
 oisatgmi_obj = oisatgmi()
 oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
