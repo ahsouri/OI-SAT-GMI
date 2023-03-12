@@ -33,6 +33,8 @@ def amf_recal(ctm_data: list, sat_data: list):
     # loop over the satellite list
     counter = 0
     for L2_granule in sat_data:
+        if (L2_granule is None):
+            continue
         time_sat_datetime = L2_granule.time
         time_sat = time_sat_datetime.year*10000 + time_sat_datetime.month*100 +\
             time_sat_datetime.day + time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \

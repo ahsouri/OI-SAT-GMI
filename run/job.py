@@ -31,7 +31,10 @@ oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
                        Path(sat_dir), str(year) + f"{month:02}", averaged=ctm_avg, read_ak=read_AK,
                        trop=troposphere_only, num_job=int(num_job))
 oisatgmi_obj.recal_amf()
-oisatgmi_obj.average(str(year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01')
+if month != 12:
+   oisatgmi_obj.average(str(year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01')
+else:
+   oisatgmi_obj.average(str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01')
 oisatgmi_obj.oi()
 oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}", output_pdf_dir)
 oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}", output_nc_dir)

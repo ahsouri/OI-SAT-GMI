@@ -52,6 +52,8 @@ def averaging(startdate: str, enddate: str, reader_obj):
             sat_chosen_error = []
             ctm_chosen_vcd = []
             for sat_data in reader_obj.sat_data:
+                if (sat_data is None):
+                    continue
                 time_sat = sat_data.time
                 # see if it falls
                 if ((time_sat.year == year) and (time_sat.month == month)):

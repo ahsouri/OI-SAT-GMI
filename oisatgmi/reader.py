@@ -350,7 +350,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     # read quality flag
     cf_fraction = quality_flag_temp = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'CloudFraction').astype('float16')
-    cf_fraction_mask = cf_fraction < 0.3
+    cf_fraction_mask = cf_fraction < 0.4
     cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
     train_ref = quality_flag_temp = _read_group_nc(
@@ -369,7 +369,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
             if flag[-1] == '1':
                 if flag[-2] == '0':
                     quality_flag[i, j] = 1.0
-    quality_flag = quality_flag*cf_fraction_mask*train_ref_mask
+    quality_flag = cf_fraction_mask*quality_flag*train_ref
     # read pressures for SWs
     ps = _read_group_nc(fname, ['GEOLOCATION_DATA'],
                         'ScatteringWeightPressure').astype('float16')
@@ -571,8 +571,8 @@ if __name__ == "__main__":
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data('201905', 'NO2', frequency_opt='3-hourly')
     reader_obj.add_satellite_data(
-        'TROPOMI_NO2', Path('download_bucket/trop_no2'))
-    reader_obj.read_satellite_data('201905', read_ak=True, num_job=1)
+        'OMI_NO2', Path('download_bucket/omi_no2'))
+    reader_obj.read_satellite_data('201905', read_ak=False, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
