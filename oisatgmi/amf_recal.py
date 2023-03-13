@@ -34,6 +34,7 @@ def amf_recal(ctm_data: list, sat_data: list):
     counter = 0
     for L2_granule in sat_data:
         if (L2_granule is None):
+            counter += 1
             continue
         time_sat_datetime = L2_granule.time
         time_sat = time_sat_datetime.year*10000 + time_sat_datetime.month*100 +\
