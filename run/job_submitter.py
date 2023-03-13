@@ -39,6 +39,8 @@ list_years = np.array(list_years)
 # submit jobs per month per year (12 jobs per year)
 if not os.path.exists('./jobs'):
     os.makedirs('./jobs')
+os.system('rm -rf temp/*.png')
+
 for year in range(np.min(list_years), np.max(list_years)+1):
     for month in range(np.min(list_months), np.max(list_months)+1):
         # slurm command

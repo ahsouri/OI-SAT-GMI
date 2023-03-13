@@ -134,4 +134,3 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
             fname + '.png', 'old AMF', 2, 0.0, 4)
 
     topdf(fname, ffolder, 'OI_report_' + fname + '.pdf')
-    os.system('rm -rf temp/*.png')

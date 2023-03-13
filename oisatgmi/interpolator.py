@@ -10,8 +10,6 @@ from scipy.spatial import cKDTree
 
 def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
     # to make the interpolator() shorter
-    # inflate the threshold
-    threshold = threshold*2
     if interpolator_type == 1:
         interpolator = LinearNDInterpolator(interpol_func, (Z).flatten(), fill_value=np.nan)
         ZZ = interpolator((X, Y))
