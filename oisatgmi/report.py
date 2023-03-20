@@ -23,7 +23,7 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
                    extent=[-180, 180,
                            -90, 90],
                    interpolation='nearest', aspect='auto', vmin=vmin, vmax=vmax,
-                   cmap=mpl.colormaps['rainbow'])
+                   cmap=mpl.colormaps['rainbow'], transform = pc)
     ax.coastlines(resolution='50m', color='black', linewidth=4)
     # fixing tickers
     x_ticks = np.arange(-180,
