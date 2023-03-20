@@ -70,8 +70,6 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
         ctmtype = "GMI"
         # read coordinates
         lon = _read_nc(fname_met, 'lon')
-        # lon between 0-360
-        lon[lon<0] = lon[lon<0] + 360.0
         lat = _read_nc(fname_met, 'lat')
         lons_grid, lats_grid = np.meshgrid(lon, lat)
         latitude = lats_grid
@@ -322,13 +320,11 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     time = datetime.datetime(
         1993, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at corners
-    latitude_corner = _read_group_nc(
-        fname, ['GEOLOCATION_DATA'], 'FoV75CornerLatitude').astype('float32')
-    longitude_corner = _read_group_nc(
-        fname, ['GEOLOCATION_DATA'], 'FoV75CornerLongitude').astype('float32')
-    #longitude_corner between 0-360
-    longitude_corner[longitude_corner<0] = longitude_corner[longitude_corner<0] + 360.0
+    # read lat/lon at centers
+    latitude_center = _read_group_nc(
+        fname, ['GEOLOCATION_DATA'], 'Latitude').astype('float32')
+    longitude_center = _read_group_nc(
+        fname, ['GEOLOCATION_DATA'], 'Longitude').astype('float32')
     # read no2
     if trop == False:
         vcd = _read_group_nc(
@@ -397,8 +393,8 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     else:
         tropopause = np.empty((1))
     # populate omi class
-    omi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
+    omi_no2 = satellite(vcd, scd, time, [], tropopause, latitude_center,
+    longitude_center, [], [], uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')

@@ -106,8 +106,8 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
     threshold_ctm = np.sqrt(size_grid_model_lon**2 + size_grid_model_lat**2)
     # get the center lat/lon
-    sat_center_lat = np.nanmean(sat_data.latitude_corner, axis=2).squeeze()
-    sat_center_lon = np.nanmean(sat_data.longitude_corner, axis=2).squeeze()
+    sat_center_lat = sat_data.latitude_center
+    sat_center_lon = sat_data.longitude_center
     # mask bad data
     mask = sat_data.quality_flag > flag_thresh
     mask = np.multiply(mask, 1.0).squeeze()
