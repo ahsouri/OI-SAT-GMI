@@ -22,6 +22,7 @@ sat_dir = ctrl_opts['sat_dir']
 output_pdf_dir = ctrl_opts['output_pdf_dir']
 output_nc_dir = ctrl_opts['output_nc_dir']
 num_job = ctrl_opts['num_job']
+error_ctm = ctrl_opts['ctm_error']
 
 year = int(sys.argv[1])
 month = int(sys.argv[2])
@@ -35,6 +36,6 @@ if month != 12:
    oisatgmi_obj.average(str(year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01')
 else:
    oisatgmi_obj.average(str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01')
-oisatgmi_obj.oi()
+oisatgmi_obj.oi(error_ctm=error_ctm)
 oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}", output_pdf_dir)
 oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}", output_nc_dir)

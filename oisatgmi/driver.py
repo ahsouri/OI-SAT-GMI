@@ -45,7 +45,7 @@ class oisatgmi(object):
         self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.new_amf, self.old_amf = averaging(
             startdate, enddate, self.reader_obj)
 
-    def oi(self, error_ctm=25.0):
+    def oi(self, error_ctm=50.0):
 
         self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
                                                                                            (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
@@ -120,6 +120,15 @@ class oisatgmi(object):
         data9 = ncfile.createVariable(
             'lat', dtype('float32').char, ('x', 'y'))
         data9[:, :] = self.reader_obj.sat_data[0].latitude_center
+
+        data10 = ncfile.createVariable(
+            'old_amf', dtype('float32').char, ('x', 'y'))
+        data10[:, :] = self.old_amf
+
+        data11 = ncfile.createVariable(
+            'new_amf', dtype('float32').char, ('x', 'y'))
+        data11[:, :] = self.new_amf
+
         ncfile.close()
 
 
@@ -128,9 +137,33 @@ if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
     oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'NO2', '3-hourly', 'OMI_NO2',
-                           Path('download_bucket/omi_no2'), '201905', averaged=False, read_ak=False, trop=False, num_job=1)
+                           Path('download_bucket/omi_no2'), '200506', averaged=True, read_ak=False, trop=False, num_job=1)
     oisatgmi_obj.recal_amf()
-    oisatgmi_obj.average('2019-05-01', '2019-06-01')
+    latitude = oisatgmi_obj.reader_obj.sat_data[0].latitude_center
+    longitude = oisatgmi_obj.reader_obj.sat_data[0].longitude_center
+
+    output = np.zeros((np.shape(latitude)[0], np.shape(
+        latitude)[1], len(oisatgmi_obj.reader_obj.sat_data)))
+    output2 = np.zeros_like(output)
+    output3 = np.zeros_like(output)
+    counter = -1
+    for trop in oisatgmi_obj.reader_obj.sat_data:
+        counter = counter + 1
+        if trop is None:
+            continue
+        else:
+            output[:, :, counter] = trop.vcd
+            output3[:,:, counter] = trop.ctm_vcd
+
+    #output[output <= 0.0] = np.nan
+    moutput = {}
+    moutput["vcds"] = output
+    moutput["ctm_vcd"] = output3
+    moutput["lat"] = latitude
+    moutput["lon"] = longitude
+    savemat("vcds.mat", moutput)
+    exit()
+    oisatgmi_obj.average('2005-05-01', '2019-06-01')
     oisatgmi_obj.oi()
     oisatgmi_obj.reporting('NO2_201905','report')
     oisatgmi_obj.write_to_nc('NO2_201905','diag')

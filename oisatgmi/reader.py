@@ -108,9 +108,9 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
     if frequency_opt == '3-hourly':
         # read meteorological and chemical fields
         tavg3_3d_met_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_met_Nv*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_met_Nv.diurnal*" + str(YYYYMM) + "*.nc4"))
         tavg3_3d_gas_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_tac_Nv*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_tac_Nv.diurnal*" + str(YYYYMM) + "*.nc4"))
         if len(tavg3_3d_gas_files) != len(tavg3_3d_met_files):
             raise Exception(
                 "the data are not consistent")
@@ -398,7 +398,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 1.5  # degree
+        grid_size = 0.25  # degree
         omi_no2 = interpolator(
             1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return
@@ -569,26 +569,27 @@ class readers(object):
 if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
-    reader_obj.read_ctm_data('201905', 'NO2', frequency_opt='3-hourly')
+    reader_obj.read_ctm_data('200506', 'NO2', frequency_opt='3-hourly', averaged=True)
     reader_obj.add_satellite_data(
         'OMI_NO2', Path('download_bucket/omi_no2'))
-    reader_obj.read_satellite_data('201905', read_ak=False, num_job=1)
+    reader_obj.read_satellite_data('200506', read_ak=False, trop=False, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
 
     output = np.zeros((np.shape(latitude)[0], np.shape(
         latitude)[1], len(reader_obj.sat_data)))
+    output2 = np.zeros_like(output)
     counter = -1
     for trop in reader_obj.sat_data:
         counter = counter + 1
         output[:, :, counter] = trop.vcd
-        #output2 = trop.quality_flag
+        output2[:,:, counter] = trop.quality_flag
 
     #output[output <= 0.0] = np.nan
     moutput = {}
     moutput["vcds"] = output
-    #moutput["quality_flag"] = output2
+    moutput["quality_flag"] = output2
     moutput["lat"] = latitude
     moutput["lon"] = longitude
     savemat("vcds.mat", moutput)

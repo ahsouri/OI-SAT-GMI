@@ -1,6 +1,12 @@
 # set your python executable path
 python_bin: '/home/asouri/anaconda3/bin/python3.9'
 
+# to run the job on debug queue
+debug: False
+
+# number of jobs
+num_job: 24
+
 # set the name of CTM model (GMI)
 ctm_name: 'GMI'
 
@@ -12,6 +18,9 @@ ctm_freq: '3-hourly'
 
 # should we average CTMs? (reduce memory overhead by a lot)
 ctm_avg: True
+
+# error in the model VCD (%)
+ctm_error: 50.0
 
 # target gas (NO2, HCHO)
 gas: 'NO2'
@@ -38,6 +47,5 @@ output_pdf_dir: 'report'
 # output folder for NC diags
 output_nc_dir: 'diag'
 
-# number of jobs
-num_job: 24
+
 

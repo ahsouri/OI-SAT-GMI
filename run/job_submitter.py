@@ -20,6 +20,7 @@ startdate = ctrl_opts['start_date']
 enddate = ctrl_opts['end_date']
 num_job = ctrl_opts['num_job']
 python_bin = ctrl_opts['python_bin']
+debug_on = ctrl_opts['debug']
 
 # convert dates to datetime
 start_date = datetime.date(int(startdate[0:4]), int(
@@ -53,7 +54,10 @@ for year in range(np.min(list_years), np.max(list_years)+1):
         slurm_cmd += '#SBATCH --ntasks=1 \n'
         slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
         slurm_cmd += '#SBATCH --mem=170G \n'
-        slurm_cmd += '#SBATCH -t 12:00:00 \n'
+        if debug_on:
+            slurm_cmd += '#SBATCH --qos=debug \n'
+        else:
+            slurm_cmd += '#SBATCH -t 12:00:00 \n'
         slurm_cmd += '#SBATCH -o oi_gmi-%j.out \n'
         slurm_cmd += '#SBATCH -e oi_gmi-%j.err \n'
         slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month)
