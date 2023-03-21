@@ -172,7 +172,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
         scattering_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                                        np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-            print('....................... SWs [' + str(z) +
+            print('....................... SWs [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
             _, _, scattering_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                              _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
@@ -183,7 +183,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
                              np.shape(upscaled_X)[1]))
     if np.size(sat_data.scattering_weights) != 1:
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-            print('....................... pmids [' + str(z) +
+            print('....................... pmids [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
             _, _,  pressure_mid[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                         _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()

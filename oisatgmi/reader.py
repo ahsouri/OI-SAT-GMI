@@ -91,9 +91,9 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
                                           timebegin_time[0], timebegin_time[1], timebegin_time[2]) +
                         datetime.timedelta(minutes=int(time_min_delta[t])))
         # read pressure information
-        delta_p = _read_nc(fname_met, 'DELP').astype('float16')/100.0
+        delta_p = _read_nc(fname_met, 'DELP').astype('float32')/100.0
         delta_p = np.flip(delta_p, axis=1)  # from bottom to top
-        pressure_mid = _read_nc(fname_met, 'PL').astype('float16')/100.0
+        pressure_mid = _read_nc(fname_met, 'PL').astype('float32')/100.0
         pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
         # read gas concentration
         temp = np.flip(_read_nc(
@@ -108,9 +108,9 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
     if frequency_opt == '3-hourly':
         # read meteorological and chemical fields
         tavg3_3d_met_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_met_Nv.diurnal*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_met_Nv.*" + str(YYYYMM) + "*.nc4"))
         tavg3_3d_gas_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_tac_Nv.diurnal*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_tac_Nv.*" + str(YYYYMM) + "*.nc4"))
         if len(tavg3_3d_gas_files) != len(tavg3_3d_met_files):
             raise Exception(
                 "the data are not consistent")
@@ -220,11 +220,9 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     time = datetime.datetime(
         2010, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(tropomi_no2.time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at corners
-    latitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA',
-                                             'GEOLOCATIONS'], 'latitude_bounds').astype('float32')
-    longitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA',
-                                              'GEOLOCATIONS'], 'longitude_bounds').astype('float32')
+    # read lat/lon at centers
+    latitude_center = _read_group_nc(fname, ['PRODUCT'],'latitude').astype('float32')
+    longitude_center = _read_group_nc(fname, ['PRODUCT'],'longitude').astype('float32')
     # read total amf
     amf_total = _read_group_nc(fname, ['PRODUCT'], 'air_mass_factor_total')
     # read no2
@@ -289,8 +287,8 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     else:
         tropopause = np.empty((1))
     # populate tropomi class
-    tropomi_no2 = satellite(vcd, scd, time, [], tropopause, [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
+    tropomi_no2 = satellite(vcd, scd, time, [], tropopause, latitude_center, longitude_center,
+                             [], [], uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -369,7 +367,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
             if flag[-1] == '1':
                 if flag[-2] == '0':
                     quality_flag[i, j] = 1.0
-    quality_flag = cf_fraction_mask*quality_flag*train_ref
+    quality_flag = quality_flag*cf_fraction_mask*train_ref
     # read pressures for SWs
     ps = _read_group_nc(fname, ['GEOLOCATION_DATA'],
                         'ScatteringWeightPressure').astype('float16')
@@ -398,7 +396,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.25  # degree
+        grid_size = 0.25 # degree
         omi_no2 = interpolator(
             1, grid_size, omi_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return

@@ -23,7 +23,7 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
                    extent=[-180, 180,
                            -90, 90],
                    interpolation='nearest', aspect='auto', vmin=vmin, vmax=vmax,
-                   cmap=mpl.colormaps['rainbow'], transform = pc)
+                   cmap=mpl.colormaps['rainbow'], transform=pc)
     ax.coastlines(resolution='50m', color='black', linewidth=4)
     # fixing tickers
     x_ticks = np.arange(-180,
@@ -52,7 +52,7 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
     plt.close()
 
 
-def topdf(fname: str, folder:str, pdf_output: str):
+def topdf(fname: str, folder: str, pdf_output: str):
     ''' 
     save all pngs to a pdf report
     '''
@@ -109,7 +109,7 @@ def topdf(fname: str, folder:str, pdf_output: str):
 
 def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd_after: np.ndarray,
            sat_vcd: np.ndarray, sat_err: np.ndarray, increment: np.ndarray, averaging_kernel: np.ndarray, error_OI: np.ndarray,
-           new_amf: np.ndarray, old_amf: np.ndarray, fname:str, ffolder: str):
+           new_amf: np.ndarray, old_amf: np.ndarray, fname: str, ffolder: str):
     '''
     '''
     if not os.path.exists('temp'):

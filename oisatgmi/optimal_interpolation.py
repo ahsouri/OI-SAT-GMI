@@ -29,7 +29,6 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on=
         Sb_tmp = (np.ones_like(kalman_gain_tmp)-kalman_gain_tmp)*Sa*float(reg)
         Sb.append(Sb_tmp)
         AK = np.ones_like(Sb_tmp)-(Sb_tmp)/(Sa*float(reg))
-        AK[AK == 0] = 0.0
         averaging_kernel.append(AK)
         averaging_kernel_mean.append(np.nanmean(AK.flatten()))
 
@@ -38,9 +37,10 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on=
         kneedle = KneeLocator(np.array(scaling_factors),
                               averaging_kernel_mean, direction='increasing')
         knee_index = np.argwhere(np.array(scaling_factors) == kneedle.knee)
+        if np.size(knee_index) == 0:
+            knee_index = [0]
     else:
-        knee_index = []
-        knee_index.append(0)
+        knee_index = [0]
 
     kalman_gain = kalman_gain[int(knee_index[0])]
     averaging_kernel = averaging_kernel[int(knee_index[0])]

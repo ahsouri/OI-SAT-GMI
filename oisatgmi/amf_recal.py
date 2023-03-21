@@ -2,6 +2,7 @@ import numpy as np
 from scipy import interpolate
 from oisatgmi.interpolator import _upscaler
 from scipy.spatial import Delaunay
+from scipy.io import savemat
 
 def amf_recal(ctm_data: list, sat_data: list):
     print('AMF Recal begins...')
@@ -17,7 +18,7 @@ def amf_recal(ctm_data: list, sat_data: list):
                 time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
             time_ctm.append(time_temp2)
             # I do this to save only hour in case of monthly-avereaged CTMs:
-            time_temp2 =  time_temp[n].hour/24.0 + \
+            time_temp2 = time_temp[n].hour/24.0 + \
                 time_temp[n].minute/60.0/24.0 + time_temp[n].second/3600.0/24.0
             time_ctm_hour_only.append(time_temp2)
         time_ctm_datetype.append(ctm_granule.time)
@@ -44,18 +45,19 @@ def amf_recal(ctm_data: list, sat_data: list):
             60.0/24.0 + time_sat_datetime.second/3600.0/24.0
         # find the closest day
         if ctm_data[0].averaged == False:
-           closest_index = np.argmin(np.abs(time_sat - time_ctm))
-           # find the closest hour (this only works for 3-hourly frequency)
-           closest_index_day = int(np.floor(closest_index/8.0))
-           closest_index_hour = int(closest_index % 8)
+            closest_index = np.argmin(np.abs(time_sat - time_ctm))
+            # find the closest hour (this only works for 3-hourly frequency)
+            closest_index_day = int(np.floor(closest_index/8.0))
+            closest_index_hour = int(closest_index % 8)
         else:
-           closest_index = np.argmin(np.abs(time_sat_hourl_only - time_ctm_hour_only))
-           # find the closest hour 
-           closest_index_hour = int(closest_index)
-           closest_index_day = int(0)
+            closest_index = np.argmin(
+                np.abs(time_sat_hourl_only - time_ctm_hour_only))
+            # find the closest hour
+            closest_index_hour = int(closest_index)
+            closest_index_day = int(0)
 
         print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
-              " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))        
+              " is at " + str(time_ctm_datetype[closest_index_day][closest_index_hour]))
         # take the profile and pressure from the right ctm data
         Mair = 28.97e-3
         g = 9.80665
@@ -136,6 +138,7 @@ def amf_recal(ctm_data: list, sat_data: list):
                 model_AMF = model_SCD/model_VCD[i, j]
                 # new amf
                 new_amf[i, j] = model_AMF
+            
         # updating the sat data
         sat_data[counter].old_amf = sat_data[counter].scd/sat_data[counter].vcd
         new_amf[np.isnan(sat_data[counter].vcd)] = np.nan
