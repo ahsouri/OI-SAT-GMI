@@ -156,10 +156,10 @@ class downloader(object):
         # the product target
         if product_tag == 'NO2':
             product = 'OMI_MINDS_NO2_1.1'
-        elif product_tag == 2:
-            product = 'HCHO'
+        elif product_tag == 'HCHO':
+            product = 'OMHCHO_003'
         if (product_name is not None):
-            prouct = product_name
+            product = product_name
         # Set up the JSON WSP request for API method: subset
         subset_request = {
             'methodname': 'subset',
@@ -253,7 +253,7 @@ class downloader(object):
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(-90, 90, -180, 180, '2005-06-01', '2005-06-10')
+    dl_obj = downloader(-90, 90, -180, 180, '2005-06-01', '2005-06-30')
     #dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
-    dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_no2/'))
+    dl_obj.download_omi_l2('HCHO', Path('download_bucket/omi_hcho/'))
     # dl_obj.merra2_gmi(Path('download_bucket/gmi/'))

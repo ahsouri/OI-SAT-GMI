@@ -136,10 +136,10 @@ class oisatgmi(object):
 if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
-    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'NO2', '3-hourly', 'OMI_NO2',
-                           Path('download_bucket/omi_no2'), '200506', averaged=True, read_ak=True, trop=True, num_job=1)
+    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'HCHO', '3-hourly', 'OMI_HCHO',
+                           Path('download_bucket/omi_hcho'), '200506', averaged=True, read_ak=True, trop=False, num_job=1)
     oisatgmi_obj.recal_amf()
     oisatgmi_obj.average('2005-06-01', '2005-06-10')
     oisatgmi_obj.oi()
-    oisatgmi_obj.reporting('NO2_201905', 'report')
-    oisatgmi_obj.write_to_nc('NO2_201905', 'diag')
+    oisatgmi_obj.reporting('HCHO_201905', 'report')
+    oisatgmi_obj.write_to_nc('HCHO_201905', 'diag')

@@ -56,7 +56,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         # upscaling is needed
         size_kernel_x = np.floor(size_grid_model_lon/grid_size)
         size_kernel_y = np.floor(size_grid_model_lat/grid_size)
-        kernel = _boxfilter(size_kernel_x, size_kernel_y)
+        kernel = _boxfilter(size_kernel_y, size_kernel_x)
         Z = signal.convolve2d(Z, kernel, boundary='symm', mode='same')
         # define the triangulation
         points = np.zeros((np.size(X), 2))
