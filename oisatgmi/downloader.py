@@ -249,11 +249,37 @@ class downloader(object):
                 os.makedirs(output_fld.as_posix())
             os.system(cmd)
 
+    def omi_hcho_cfa(self, output_fld: Path):
+        '''
+            download the merra2-gmi data
+            output_fld [Path]: a pathlib object describing the output folder
+        '''
+        # convert dates to datetime
+        start_date = datetime.date(int(self.datestart[0:4]), int(
+            self.datestart[5:7]), int(self.datestart[8:10]))
+        end_date = datetime.date(int(self.dateend[0:4]), int(
+            self.dateend[5:7]), int(self.dateend[8:10]))
+
+        for single_date in _daterange(start_date, end_date):
+
+            url = 'https://waps.cfa.harvard.edu/sao_atmos/data/omi_hcho/OMI-HCHO-L2/'
+            url += str(single_date.year) + '/'
+            url += f"{single_date.month:02}" + '/'
+            url += f"{single_date.day:02}" + '/'
+
+            cmd = "wget -r -nH -nc --no-check-certificate --content-disposition --continue "
+            cmd += '"' + url + '"'
+            cmd += " -P " + (output_fld.as_posix())
+            if not os.path.exists(output_fld.as_posix()):
+                os.makedirs(output_fld.as_posix())
+            os.system(cmd)
+
 
 # testing
 if __name__ == "__main__":
 
     dl_obj = downloader(-90, 90, -180, 180, '2005-06-01', '2005-06-30')
     #dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
-    dl_obj.download_omi_l2('HCHO', Path('download_bucket/omi_hcho/'))
+    #dl_obj.download_omi_l2('HCHO', Path('download_bucket/omi_hcho/'))
+    dl_obj.omi_hcho_cfa(Path('download_bucket/omi_hcho/'))
     # dl_obj.merra2_gmi(Path('download_bucket/gmi/'))

@@ -113,9 +113,9 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
     if frequency_opt == '3-hourly':
         # read meteorological and chemical fields
         tavg3_3d_met_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_met_Nv.di*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_met_Nv.*" + str(YYYYMM) + "*.nc4"))
         tavg3_3d_gas_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_tac_Nv.di*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_tac_Nv.*" + str(YYYYMM) + "*.nc4"))
         if len(tavg3_3d_gas_files) != len(tavg3_3d_met_files):
             raise Exception(
                 "the data are not consistent")
