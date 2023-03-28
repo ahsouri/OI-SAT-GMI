@@ -50,7 +50,7 @@ class oisatgmi(object):
         self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
                                                                                            (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
 
-    def reporting(self, fname: str, folder='report'):
+    def reporting(self, fname: str, gasname, folder='report'):
 
         # pick the right latitude and longitude
         # the right one is the coarsest one so
@@ -64,7 +64,7 @@ class oisatgmi(object):
             lon = self.reader_obj.ctm_data[0].longitude
 
         report(lon, lat, self.ctm_averaged_vcd, self.ctm_averaged_vcd_corrected,
-               self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.new_amf, self.old_amf, fname, folder)
+               self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.new_amf, self.old_amf, fname, folder, gasname)
 
     def write_to_nc(self, output_file, output_folder='diag'):
         ''' 
@@ -137,9 +137,9 @@ if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
     oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'HCHO', '3-hourly', 'OMI_HCHO',
-                           Path('download_bucket/omi_hcho'), '200506', averaged=True, read_ak=True, trop=False, num_job=1)
+                           Path('download_bucket/omi_hcho'), '200503', averaged=True, read_ak=False, trop=False, num_job=1)
     oisatgmi_obj.recal_amf()
-    oisatgmi_obj.average('2005-06-01', '2005-06-10')
-    oisatgmi_obj.oi()
-    oisatgmi_obj.reporting('HCHO_201905', 'report')
-    oisatgmi_obj.write_to_nc('HCHO_201905', 'diag')
+    oisatgmi_obj.average('2005-03-01', '2005-04-01')
+    oisatgmi_obj.oi(error_ctm=10.0)
+    oisatgmi_obj.reporting('HCHO_200503', 'HCHO', folder='report')
+    oisatgmi_obj.write_to_nc('HCHO_200503', 'diag')

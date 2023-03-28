@@ -109,25 +109,33 @@ def topdf(fname: str, folder: str, pdf_output: str):
 
 def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd_after: np.ndarray,
            sat_vcd: np.ndarray, sat_err: np.ndarray, increment: np.ndarray, averaging_kernel: np.ndarray, error_OI: np.ndarray,
-           new_amf: np.ndarray, old_amf: np.ndarray, fname: str, ffolder: str):
+           new_amf: np.ndarray, old_amf: np.ndarray, fname: str, ffolder: str, gasname: str):
     '''
     '''
     if not os.path.exists('temp'):
         os.makedirs('temp')
+    if gasname == 'HCHO':
+        vmin_vcd = 0.0
+        vmax_vcd = 20.0
+        vmax_error = 15.0        
+    if gasname == 'NO2':
+        vmin_vcd = 0.0
+        vmax_vcd = 10.0
+        vmax_error = 5.0  
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
-            fname + '.png', 'CTM VCD (prior)', 1, 0.0, 10.0)
+            fname + '.png', 'CTM VCD (prior)', 1, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +
-            fname + '.png', 'CTM VCD (posterior)', 1, 0.0, 10.0)
+            fname + '.png', 'CTM VCD (posterior)', 1, vmin_vcd, vmax_vcd)
     plotter(lon, lat, sat_vcd, 'temp/ctm_vcd_sat_used_' + fname +
-            '.png', 'Satellite Observation (Y)', 1, 0.0, 10.0)
+            '.png', 'Satellite Observation (Y)', 1, vmin_vcd, vmax_vcd)
     plotter(lon, lat, sat_err, 'temp/ctm_vcd_sat_zerr_' + fname +
-            '.png', 'Satellite Error (So)', 1, 0.0, 4.0)
+            '.png', 'Satellite Error (So)', 1, 0.0, vmax_error)
     plotter(lon, lat, increment, 'temp/increment_' +
             fname + '.png', 'Increment', 1, -5.0, 5.0)
     plotter(lon, lat, averaging_kernel, 'temp/dak_' +
             fname + '.png', 'Averaging Kernels', 2, 0.0, 1.0)
     plotter(lon, lat, error_OI, 'temp/error_' +
-            fname + '.png', 'OI estimate error', 1, 0.0, 4.0)
+            fname + '.png', 'OI estimate error', 1, 0.0, vmax_error)
     plotter(lon, lat, new_amf, 'temp/new_amf_' +
             fname + '.png', 'new AMF', 2, 0.0, 4)
     plotter(lon, lat, old_amf, 'temp/old_amf_' +
