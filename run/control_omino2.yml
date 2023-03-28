@@ -5,7 +5,7 @@ python_bin: '/home/asouri/anaconda3/bin/python3.9'
 debug: False
 
 # number of jobs
-num_job: 24
+num_job: 36
 
 # set the name of CTM model (GMI)
 ctm_name: 'GMI'
@@ -42,10 +42,10 @@ start_date: '2019-05'
 end_date:   '2019-06'
 
 # output folder for PDF reports
-output_pdf_dir: 'report'
+output_pdf_dir: './report'
 
 # output folder for NC diags
-output_nc_dir: 'diag'
+output_nc_dir: './diag'
 
 
 
