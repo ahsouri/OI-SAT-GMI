@@ -7,7 +7,8 @@ import urllib3
 from time import sleep
 import requests
 import datetime
-
+import requests
+from bs4 import BeautifulSoup
 
 def _charconv1(char):
     return("'{}'".format(char))
@@ -251,7 +252,7 @@ class downloader(object):
 
     def omi_hcho_cfa(self, output_fld: Path):
         '''
-            download the merra2-gmi data
+            download the omi SAO HCHO observations
             output_fld [Path]: a pathlib object describing the output folder
         '''
         # convert dates to datetime
@@ -267,12 +268,16 @@ class downloader(object):
             url += f"{single_date.month:02}" + '/'
             url += f"{single_date.day:02}" + '/'
 
-            cmd = "wget -r -nH -nc --no-check-certificate --content-disposition --continue "
-            cmd += '"' + url + '"'
-            cmd += " -P " + (output_fld.as_posix())
-            if not os.path.exists(output_fld.as_posix()):
-                os.makedirs(output_fld.as_posix())
-            os.system(cmd)
+            reqs = requests.get(url)
+            soup = BeautifulSoup(reqs.text, 'html.parser')
+            for link in soup.find_all('a'):
+                print(link.get('href'))
+                cmd = "wget -nH -nc --no-check-certificate --content-disposition --continue "
+                cmd += '"' + url + link.get('href') + '"'
+                cmd += " -P " + (output_fld.as_posix())
+                if not os.path.exists(output_fld.as_posix()):
+                   os.makedirs(output_fld.as_posix())
+                os.system(cmd)
 
 
 # testing
