@@ -20,6 +20,7 @@ def _read_nc(filename, var):
     nc_fid.close()
     return np.squeeze(out)
 
+
 # inputs
 oi_diag_folder = Path(str(sys.argv[1]))
 oi_diag_files = sorted(
@@ -49,7 +50,7 @@ for fname in oi_diag_files:
 
     times = ext_data.createVariable("time", "f8", ("time",))
     times.long_name = "time"
-    times.units = "Hours since " + time_diag.strftime("%Y-%m-%d %H:%M:%S")
+    times.units = "hours since " + time_diag.strftime("%Y-%m-%d %H:%M:%S")
 
     latitudes = ext_data.createVariable("lat", "f8", ("lat",))
     latitudes.units = "degrees_north"
@@ -62,7 +63,6 @@ for fname in oi_diag_files:
     sf.units = "fraction"
 
     times = 0.0
-    print(np.shape(lat))
     latitudes[:] = lat[:, 0].squeeze()
     longitudes[:] = lon[0, :].squeeze()
     sf[:, :, :] = scaling_factors
@@ -76,3 +76,49 @@ for fname in oi_diag_files:
     current_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     ext_data.creation_time = str(current_time)
     ext_data.close()
+
+# creating fake OI factors outside of the boundary
+for yr in range(1990, 2005):
+    for mm in range(1, 13):
+        print("Now faking for " + str(yr) + str(mm))
+        time_diag = datetime.datetime(
+            int(yr), int(mm), 1) + datetime.timedelta(seconds=int(0.0))
+        
+        fbasename = 'NO2_' + str(yr) + str(mm) + '.nc'
+
+        # write to the new scheme
+        ext_data = Dataset(ext_files_folder.as_posix() + "/" +
+                           fbasename, "w", format="NETCDF4")
+
+        time_dim = ext_data.createDimension("time", 1)
+        lat_dim = ext_data.createDimension("lat", np.shape(lat)[0])
+        lon_dim = ext_data.createDimension("lon", np.shape(lat)[1])
+
+        times = ext_data.createVariable("time", "f8", ("time",))
+        times.long_name = "time"
+        times.units = "hours since " + time_diag.strftime("%Y-%m-%d %H:%M:%S")
+
+        latitudes = ext_data.createVariable("lat", "f8", ("lat",))
+        latitudes.units = "degrees_north"
+        latitudes.long_name = "latitude"
+        longitudes = ext_data.createVariable("lon", "f8", ("lon",))
+        longitudes.units = "degrees_east"
+        longitudes.long_name = "longitude"
+
+        sf = ext_data.createVariable("SF", "f8", ("time", "lat", "lon",))
+        sf.units = "fraction"
+
+        times = 0.0
+        latitudes[:] = lat[:, 0].squeeze()
+        longitudes[:] = lon[0, :].squeeze()
+        sf[:, :, :] = 1.0
+
+        # global attributes
+        ext_data.Source = "OI-SAT-GMI tool (https://doi.org/10.5281/zenodo.7757427)"
+        ext_data.Version = "0.0.7"
+        ext_data.Institution = "NASA GSFC Code 614"
+        ext_data.Contact = "Amir Souri (a.souri@nasa.gov or ahsouri@gmail.com)"
+        t = time.localtime()
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
+        ext_data.creation_time = str(current_time)
+        ext_data.close()

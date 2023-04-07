@@ -355,12 +355,12 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     # read quality flag
     cf_fraction = quality_flag_temp = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'CloudFraction').astype('float16')
-    cf_fraction_mask = cf_fraction < 0.4
+    cf_fraction_mask = cf_fraction < 0.3
     cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
     train_ref = quality_flag_temp = _read_group_nc(
         fname, ['ANCILLARY_DATA'], 'TerrainReflectivity').astype('float16')
-    train_ref_mask = train_ref < 0.8
+    train_ref_mask = train_ref < 0.2
     train_ref_mask = np.multiply(train_ref_mask, 1.0).squeeze()
 
     quality_flag_temp = _read_group_nc(
