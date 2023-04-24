@@ -42,13 +42,12 @@ for fname in oi_diag_files:
     error_ctm = 50.0
     fbasename = os.path.basename(fname)
 
-    ctm_averaged_vcd_corrected, ak_OI, increment_OI, error_OI = OI(ctm_averaged_vcd, sat_averaged_vcd
-                                                                 (ctm_averaged_vcd*error_ctm/100.0)**2, 
-                                                                 sat_averaged_error**2, regularization_on=True)
-    
-    
+    ctm_averaged_vcd_corrected, ak_OI, increment_OI, error_OI = OI(ctm_averaged_vcd, sat_averaged_vcd,
+                                                                        (ctm_averaged_vcd*error_ctm/100.0)**2, 
+                                                                        sat_averaged_error**2, regularization_on=True)
+
     # Write the final results to a netcdf
-    ncfile = Dataset(ext_files_folder + '/' + fbasename + '.nc', 'w')
+    ncfile = Dataset(ext_files_folder.as_posix() + '/' + fbasename + '.nc', 'w')
 
     # create the x and y dimensions.
     ncfile.createDimension('x', np.shape(sat_averaged_vcd)[0])
