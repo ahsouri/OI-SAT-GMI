@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
     oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'O3', '3-hourly', 'OMI_O3',
-                           Path('download_bucket/omi_o3/subset'), '200503', 
+                           Path('download_bucket/omi_o3/'), '200503', 
                            averaged=True, read_ak=False, trop=False, num_job=1)
     oisatgmi_obj.recal_amf()
     oisatgmi_obj.average('2005-03-01', '2005-04-01', gasname = 'O3')

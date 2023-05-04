@@ -46,6 +46,8 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
         cbar.set_label(r'$[ \times 10^{15}molec.cm^{-2}] $', fontsize=18)
     elif unit == 2:
         cbar.set_label('$ [Unitless] $', fontsize=18)
+    elif unit == 3:
+        cbar.set_label('$ [DU] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
@@ -117,29 +119,32 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
     if gasname == 'HCHO':
         vmin_vcd = 0.0
         vmax_vcd = 20.0
-        vmax_error = 15.0        
+        vmax_error = 15.0
+        unit = 1   
     if gasname == 'NO2':
         vmin_vcd = 0.0
         vmax_vcd = 10.0
-        vmax_error = 5.0  
+        vmax_error = 5.0
+        unit = 1
     if gasname == 'O3':
         vmin_vcd = 200.0
         vmax_vcd = 500.0
         vmax_error = 10.0
+        unit = 3 # DU
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
-            fname + '.png', 'CTM VCD (prior)', 1, vmin_vcd, vmax_vcd)
+            fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +
-            fname + '.png', 'CTM VCD (posterior)', 1, vmin_vcd, vmax_vcd)
+            fname + '.png', 'CTM VCD (posterior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, sat_vcd, 'temp/ctm_vcd_sat_used_' + fname +
-            '.png', 'Satellite Observation (Y)', 1, vmin_vcd, vmax_vcd)
+            '.png', 'Satellite Observation (Y)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, sat_err, 'temp/ctm_vcd_sat_zerr_' + fname +
-            '.png', 'Satellite Error (So)', 1, 0.0, vmax_error)
+            '.png', 'Satellite Error (So)', unit, 0.0, vmax_error)
     plotter(lon, lat, increment, 'temp/increment_' +
-            fname + '.png', 'Increment', 1, -5.0, 5.0)
+            fname + '.png', 'Increment', unit, -5.0, 5.0)
     plotter(lon, lat, averaging_kernel, 'temp/dak_' +
             fname + '.png', 'Averaging Kernels', 2, 0.0, 1.0)
     plotter(lon, lat, error_OI, 'temp/error_' +
-            fname + '.png', 'OI estimate error', 1, 0.0, vmax_error)
+            fname + '.png', 'OI estimate error', unit, 0.0, vmax_error)
     plotter(lon, lat, new_amf, 'temp/new_amf_' +
             fname + '.png', 'new AMF', 2, 0.0, 4)
     plotter(lon, lat, old_amf, 'temp/old_amf_' +
