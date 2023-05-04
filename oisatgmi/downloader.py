@@ -10,6 +10,7 @@ import datetime
 import requests
 from bs4 import BeautifulSoup
 
+
 def _charconv1(char):
     return("'{}'".format(char))
 
@@ -159,6 +160,9 @@ class downloader(object):
             product = 'OMI_MINDS_NO2_1.1'
         elif product_tag == 'HCHO':
             product = 'OMHCHO_003'
+        elif product_tag == 'O3':
+            #product = 'OMDOAO3_003'
+            product = 'OMTO3_003'
         if (product_name is not None):
             product = product_name
         # Set up the JSON WSP request for API method: subset
@@ -197,8 +201,10 @@ class downloader(object):
                     result.raise_for_status()
                     urls = result.text.split('\n')
                     for url in urls:
-                        cmd = "wget -nH -nc --no-check-certificate --content-disposition --continue "
-                        cmd += "--load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --auth-no-challenge=on "
+                        cmd = "wget -nH -nc --no-check-certificate "
+                        if product_tag != 'O3':
+                           cmd +=  "--content-disposition "
+                        cmd += "--continue --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --auth-no-challenge=on "
                         cmd += "--keep-session-cookies "
                         cmd += '"' + str(url)[:-1] + '"'
                         cmd += " -P " + (output_fld.as_posix())
@@ -276,15 +282,15 @@ class downloader(object):
                 cmd += '"' + url + link.get('href') + '"'
                 cmd += " -P " + (output_fld.as_posix())
                 if not os.path.exists(output_fld.as_posix()):
-                   os.makedirs(output_fld.as_posix())
+                    os.makedirs(output_fld.as_posix())
                 os.system(cmd)
 
 
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(-90, 90, -180, 180, '2005-03-01', '2005-03-30')
+    dl_obj = downloader(-90, 90, -180, 180, '2005-03-01', '2005-03-31')
     #dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
-    #dl_obj.download_omi_l2('HCHO', Path('download_bucket/omi_hcho/'))
-    dl_obj.omi_hcho_cfa(Path('download_bucket/omi_hcho/'))
+    #dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_hcho/'))
+    dl_obj.download_omi_l2('O3', Path('download_bucket/omi_o3/'))
     # dl_obj.merra2_gmi(Path('download_bucket/gmi/'))

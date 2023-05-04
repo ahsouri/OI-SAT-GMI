@@ -35,7 +35,7 @@ class oisatgmi(object):
         self.reader_obj.sat_data = amf_recal(
             self.reader_obj.ctm_data, self.reader_obj.sat_data)
 
-    def average(self, startdate: str, enddate: str):
+    def average(self, startdate: str, enddate: str, gasname = None):
         '''
             average the data
             Input:
@@ -44,6 +44,7 @@ class oisatgmi(object):
         '''
         self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.new_amf, self.old_amf = averaging(
             startdate, enddate, self.reader_obj)
+        if gasname == 'O3': self.ctm_averaged_vcd = self.ctm_averaged_vcd/(2.69e16*1e-15)
 
     def oi(self, error_ctm=50.0):
 
@@ -136,10 +137,11 @@ class oisatgmi(object):
 if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
-    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'HCHO', '3-hourly', 'OMI_HCHO',
-                           Path('download_bucket/omi_hcho'), '200503', averaged=True, read_ak=False, trop=False, num_job=1)
+    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'O3', '3-hourly', 'OMI_O3',
+                           Path('download_bucket/omi_o3/subset'), '200503', 
+                           averaged=True, read_ak=False, trop=False, num_job=1)
     oisatgmi_obj.recal_amf()
-    oisatgmi_obj.average('2005-03-01', '2005-04-01')
+    oisatgmi_obj.average('2005-03-01', '2005-04-01', gasname = 'O3')
     oisatgmi_obj.oi(error_ctm=10.0)
-    oisatgmi_obj.reporting('HCHO_200503', 'HCHO', folder='report')
-    oisatgmi_obj.write_to_nc('HCHO_200503', 'diag')
+    oisatgmi_obj.reporting('O3_200503', 'O3', folder='report')
+    oisatgmi_obj.write_to_nc('O3_200503', 'diag')

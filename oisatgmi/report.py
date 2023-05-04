@@ -122,6 +122,10 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmin_vcd = 0.0
         vmax_vcd = 10.0
         vmax_error = 5.0  
+    if gasname == 'O3':
+        vmin_vcd = 200.0
+        vmax_vcd = 500.0
+        vmax_error = 10.0
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', 1, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +

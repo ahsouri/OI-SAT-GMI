@@ -498,6 +498,68 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sat
         return None
 
 
+def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite:
+    '''
+       OMI total ozone L2 reader
+       Inputs:
+             fname [str]: the name path of the L2 file
+             trop [bool]: true for considering the tropospheric region only
+             ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
+       Output:
+             omi_hcho [satellite]: a dataclass format (see config.py)
+    '''
+    if 1 == 1:
+        # say which file is being read
+        print("Currently reading: " + fname.split('/')[-1])
+        # read timeHDFEOS/SWATHS/OMI Column Amount O3/Geolocation Fields/Latitude
+        time = _read_group_nc(fname, ['HDFEOS', 'SWATHS',
+                                      'OMI Column Amount O3', 'Geolocation Fields'], 'Time')
+        time = np.squeeze(np.nanmean(time))
+        time = datetime.datetime(
+            1993, 1, 1) + datetime.timedelta(seconds=int(time))
+        # read lat/lon at centers
+        latitude_center = _read_group_nc(
+            fname, ['HDFEOS', 'SWATHS',
+                    'OMI Column Amount O3', 'Geolocation Fields'], 'Latitude').astype('float32')
+        longitude_center = _read_group_nc(
+            fname, ['HDFEOS', 'SWATHS',
+                    'OMI Column Amount O3', 'Geolocation Fields'], 'Longitude').astype('float32')
+        # read hcho
+        vcd = _read_group_nc(
+            fname, ['HDFEOS', 'SWATHS',
+                    'OMI Column Amount O3', 'Data Fields'], 'ColumnAmountO3')
+        vcd[np.where((vcd<=0) | (np.isinf(vcd)))] = np.nan
+        vcd = (vcd).astype('float16')
+        # read quality flag
+        quality_flag_temp = _read_group_nc(
+            fname, ['HDFEOS', 'SWATHS',
+                    'OMI Column Amount O3', 'Data Fields'], 'QualityFlags').astype('float16')
+        quality_flag = np.zeros_like(quality_flag_temp)*-100.0
+        for i in range(0, np.shape(quality_flag)[0]):
+            for j in range(0, np.shape(quality_flag)[1]):
+                flag = '{0:08b}'.format(int(quality_flag_temp[i, j]))
+                if flag[-1] == '0':
+                    quality_flag[i, j] = 1.0
+
+        uncertainty = (vcd*0.01).astype('float16')
+
+        # no need to read tropopause for total O3
+        tropopause = np.empty((1))
+        SWs = np.empty((1))
+        # populate omi class
+        omi_o3 = satellite(vcd, vcd, time, [], tropopause, latitude_center,
+                           longitude_center, [], [], uncertainty, quality_flag, [], [], SWs, [], [], [], [], [])
+        # interpolation
+        if (ctm_models_coordinate is not None):
+            print('Currently interpolating ...')
+            grid_size = 2.0  # degree
+            omi_o3 = interpolator(
+                1, grid_size, omi_o3, ctm_models_coordinate, flag_thresh=0.0)
+        # return
+        return omi_o3
+
+
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
     '''
         reading tropomi data
@@ -532,6 +594,7 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
              satellite_product_name [str]: so far we support:
                                          "NO2"
                                          "HCHO"
+                                         "O3"
              ctm_models_coordinate [dict]: the ctm coordinates
              YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
              trop [bool]: true for considering the tropospheric region only
@@ -541,15 +604,23 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
     '''
 
     # find L2 files first
-    print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc")
-    L2_files = sorted(glob.glob(product_dir + "/*" +
-                      YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc"))
+    if satellite_product_name.split('_')[-1] != 'O3':
+        print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc")
+        L2_files = sorted(glob.glob(product_dir + "/*" +
+                                    YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc"))
+    else:
+        print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5")
+        L2_files = sorted(glob.glob(product_dir + "/*" +
+                                    YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5"))
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_no2)(
             L2_files[k], trop, ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     elif satellite_product_name.split('_')[-1] == 'HCHO':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_hcho)(
+            L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+    elif satellite_product_name.split('_')[-1] == 'O3':
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_o3)(
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
 
@@ -569,7 +640,8 @@ class readers(object):
                                    TROPOMI_CH4
                                    TROPOMI_CO
                                    OMI_NO2
-                                   OMI_HCHO   
+                                   OMI_HCHO
+                                   OMI_O3
                 product_dir  [Path]: a path object describing the path of L2 files
         '''
         self.satellite_product_dir = product_dir
@@ -591,9 +663,6 @@ class readers(object):
         '''
             read L2 satellite data
             Input:
-             satellite [str]: acceptable satellites at this points: 
-                              'OMI'
-                              'TROPOMI'
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
              trop[bool]: true for only including the tropospheric region (relevant for NO2 only)
@@ -663,9 +732,9 @@ if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data(
-        '200503', 'HCHO', frequency_opt='3-hourly', averaged=True)
+        '200503', 'O3', frequency_opt='3-hourly', averaged=True)
     reader_obj.add_satellite_data(
-        'OMI_HCHO', Path('download_bucket/omi_hcho'))
+        'OMI_O3', Path('download_bucket/omi_o3/subset'))
     reader_obj.read_satellite_data(
         '200503', read_ak=False, trop=False, num_job=1)
 
@@ -681,7 +750,7 @@ if __name__ == "__main__":
         if trop is None:
             continue
         output[:, :, counter] = trop.vcd
-        #output2[:, :, counter] = trop.quality_flag
+        output2[:, :, counter] = trop.uncertainty
 
     #output[output <= 0.0] = np.nan
     moutput = {}
