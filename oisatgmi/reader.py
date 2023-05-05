@@ -525,11 +525,15 @@ def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satel
         longitude_center = _read_group_nc(
             fname, ['HDFEOS', 'SWATHS',
                     'OMI Column Amount O3', 'Geolocation Fields'], 'Longitude').astype('float32')
+        
+        SZA = _read_group_nc(
+            fname, ['HDFEOS', 'SWATHS',
+                    'OMI Column Amount O3', 'Geolocation Fields'], 'SolarZenithAngle').astype('float32')
         # read hcho
         vcd = _read_group_nc(
             fname, ['HDFEOS', 'SWATHS',
                     'OMI Column Amount O3', 'Data Fields'], 'ColumnAmountO3')
-        vcd[np.where((vcd<=0) | (np.isinf(vcd)))] = np.nan
+        vcd[np.where((vcd<=0) | (np.isinf(vcd)) | SZA>80.0)] = np.nan
         vcd = (vcd).astype('float16')
         # read quality flag
         quality_flag_temp = _read_group_nc(
@@ -542,7 +546,7 @@ def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satel
                 if flag[-1] == '0':
                     quality_flag[i, j] = 1.0
 
-        uncertainty = (vcd*0.01).astype('float16')
+        uncertainty = (vcd*0.04).astype('float16') # 4 percent error based on several studies
 
         # no need to read tropopause for total O3
         tropopause = np.empty((1))

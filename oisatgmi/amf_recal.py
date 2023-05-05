@@ -41,7 +41,7 @@ def amf_recal(ctm_data: list, sat_data: list):
         time_sat = time_sat_datetime.year*10000 + time_sat_datetime.month*100 +\
             time_sat_datetime.day + time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
             60.0/24.0 + time_sat_datetime.second/3600.0/24.0
-        time_sat_hourl_only = time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
+        time_sat_hour_only = time_sat_datetime.hour/24.0 + time_sat_datetime.minute / \
             60.0/24.0 + time_sat_datetime.second/3600.0/24.0
         # find the closest day
         if ctm_data[0].averaged == False:
@@ -51,7 +51,7 @@ def amf_recal(ctm_data: list, sat_data: list):
             closest_index_hour = int(closest_index % 8)
         else:
             closest_index = np.argmin(
-                np.abs(time_sat_hourl_only - time_ctm_hour_only))
+                np.abs(time_sat_hour_only - time_ctm_hour_only))
             # find the closest hour
             closest_index_hour = int(closest_index)
             closest_index_day = int(0)
@@ -86,6 +86,8 @@ def amf_recal(ctm_data: list, sat_data: list):
                                                               ctm_deltap[z, :, :]*ctm_profile[z, :, :]/g/Mair*N_A*1e-4*1e-15*100.0*1e-9, sat_coordinate, 0.6, 0.8, tri=tri)
             ctm_mid_pressure = ctm_mid_pressure_new
             ctm_partial_column = ctm_partial_new
+            ctm_partial_new = []
+            ctm_mid_pressure_new = []
         # interpolate vertical grid
         # check if AMF recal is even possible
         if (np.size(L2_granule.scattering_weights) == 1):

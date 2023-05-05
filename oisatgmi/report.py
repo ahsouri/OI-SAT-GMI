@@ -120,16 +120,22 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmin_vcd = 0.0
         vmax_vcd = 20.0
         vmax_error = 15.0
+        vmin_incre = -5.0
+        vmax_incre = 5.0
         unit = 1   
     if gasname == 'NO2':
         vmin_vcd = 0.0
         vmax_vcd = 10.0
         vmax_error = 5.0
+        vmin_incre = -5.0
+        vmax_incre = 5.0
         unit = 1
     if gasname == 'O3':
         vmin_vcd = 200.0
         vmax_vcd = 500.0
-        vmax_error = 10.0
+        vmax_error = 30.0
+        vmin_incre = -20.0
+        vmax_incre = 20.0
         unit = 3 # DU
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
@@ -140,7 +146,7 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
     plotter(lon, lat, sat_err, 'temp/ctm_vcd_sat_zerr_' + fname +
             '.png', 'Satellite Error (So)', unit, 0.0, vmax_error)
     plotter(lon, lat, increment, 'temp/increment_' +
-            fname + '.png', 'Increment', unit, -5.0, 5.0)
+            fname + '.png', 'Increment', unit, vmin_incre, vmax_incre)
     plotter(lon, lat, averaging_kernel, 'temp/dak_' +
             fname + '.png', 'Averaging Kernels', 2, 0.0, 1.0)
     plotter(lon, lat, error_OI, 'temp/error_' +
