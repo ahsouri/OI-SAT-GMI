@@ -203,7 +203,7 @@ class downloader(object):
                     for url in urls:
                         cmd = "wget -nH -nc --no-check-certificate "
                         if product_tag != 'O3':
-                           cmd +=  "--content-disposition "
+                            cmd += "--content-disposition "
                         cmd += "--continue --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --auth-no-challenge=on "
                         cmd += "--keep-session-cookies "
                         cmd += '"' + str(url)[:-1] + '"'

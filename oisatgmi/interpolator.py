@@ -11,7 +11,8 @@ from scipy.spatial import cKDTree
 def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
     # to make the interpolator() shorter
     if interpolator_type == 1:
-        interpolator = LinearNDInterpolator(interpol_func, (Z).flatten(), fill_value=np.nan)
+        interpolator = LinearNDInterpolator(
+            interpol_func, (Z).flatten(), fill_value=np.nan)
         ZZ = interpolator((X, Y))
         ZZ[dists > threshold] = np.nan
     elif interpolator_type == 2:
@@ -120,9 +121,9 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     # if the points are not unique or weird, the convex hull can't be formed,
     # at this point, we can just skip this L2 file
     try:
-       tri = Delaunay(points)
+        tri = Delaunay(points)
     except:
-       return None
+        return None
     # define the grid
     lat_ctm_min = np.min(ctm_models_coordinate['Latitude'].flatten())
     lat_ctm_max = np.max(ctm_models_coordinate['Latitude'].flatten())

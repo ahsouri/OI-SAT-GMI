@@ -48,15 +48,4 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on=
     increment = kalman_gain*(Y-Xa)
     Xb = Xa + increment
 
-    #moutput = {}
-    #moutput["kalman_gain"] = kalman_gain
-    #moutput["increment"] = increment
-    #moutput["Xb"] = Xb
-    #moutput["Sb"] = Sb
-    #moutput["Sa"] = Sa
-    #moutput["Xa"] = Xa
-    #moutput["So"] = So
-    #moutput["Y"] = Y
-    #moutput["averaging_kernel"] = averaging_kernel
-    #savemat("oi_diag.mat", moutput)
     return Xb, averaging_kernel, increment, np.sqrt(Sb)

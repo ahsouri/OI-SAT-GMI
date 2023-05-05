@@ -4,6 +4,7 @@ from oisatgmi.interpolator import _upscaler
 from scipy.spatial import Delaunay
 from scipy.io import savemat
 
+
 def amf_recal(ctm_data: list, sat_data: list):
     print('AMF Recal begins...')
     # list the time in ctm_data
@@ -140,7 +141,7 @@ def amf_recal(ctm_data: list, sat_data: list):
                 model_AMF = model_SCD/model_VCD[i, j]
                 # new amf
                 new_amf[i, j] = model_AMF
-            
+
         # updating the sat data
         sat_data[counter].old_amf = sat_data[counter].scd/sat_data[counter].vcd
         new_amf[np.isnan(sat_data[counter].vcd)] = np.nan

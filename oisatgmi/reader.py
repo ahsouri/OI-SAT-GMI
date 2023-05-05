@@ -60,7 +60,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
              gases_to_be_saved [list]: name of gases to be loaded. e.g., ['NO2']
              frequency_opt: the frequency of data
                         1 -> hourly 
-                        2 -> 3-hourly
+                        2 -> 3-hourly (only supported)
                         3 -> daily
             num_obj [int]: number of jobs for parallel computation
        Output:
@@ -103,7 +103,11 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
             gasname = 'CH2O'
         temp = np.flip(_read_nc(
             fname_gas, gasname), axis=1)*1e9  # ppbv
-        gas_profile = temp.astype('float16')
+        # the purpose of this part is to reduce memory usage
+        if gasname != 'O3':
+            gas_profile = temp.astype('float16')
+        else:
+            gas_profile = temp.astype('float32')
         temp = []
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, gas_profile,
@@ -415,12 +419,12 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sat
        OMI HCHO L2 reader
        Inputs:
              fname [str]: the name path of the L2 file
-             trop [bool]: true for considering the tropospheric region only
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
              omi_hcho [satellite]: a dataclass format (see config.py)
     '''
+    # we add "try" because some files have format issue thus unreadable
     try:
         # say which file is being read
         print("Currently reading: " + fname.split('/')[-1])
@@ -503,65 +507,65 @@ def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satel
        OMI total ozone L2 reader
        Inputs:
              fname [str]: the name path of the L2 file
-             trop [bool]: true for considering the tropospheric region only
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
              omi_hcho [satellite]: a dataclass format (see config.py)
     '''
-    if 1 == 1:
-        # say which file is being read
-        print("Currently reading: " + fname.split('/')[-1])
-        # read timeHDFEOS/SWATHS/OMI Column Amount O3/Geolocation Fields/Latitude
-        time = _read_group_nc(fname, ['HDFEOS', 'SWATHS',
-                                      'OMI Column Amount O3', 'Geolocation Fields'], 'Time')
-        time = np.squeeze(np.nanmean(time))
-        time = datetime.datetime(
-            1993, 1, 1) + datetime.timedelta(seconds=int(time))
-        # read lat/lon at centers
-        latitude_center = _read_group_nc(
-            fname, ['HDFEOS', 'SWATHS',
-                    'OMI Column Amount O3', 'Geolocation Fields'], 'Latitude').astype('float32')
-        longitude_center = _read_group_nc(
-            fname, ['HDFEOS', 'SWATHS',
-                    'OMI Column Amount O3', 'Geolocation Fields'], 'Longitude').astype('float32')
-        
-        SZA = _read_group_nc(
-            fname, ['HDFEOS', 'SWATHS',
-                    'OMI Column Amount O3', 'Geolocation Fields'], 'SolarZenithAngle').astype('float32')
-        # read hcho
-        vcd = _read_group_nc(
-            fname, ['HDFEOS', 'SWATHS',
-                    'OMI Column Amount O3', 'Data Fields'], 'ColumnAmountO3')
-        vcd[np.where((vcd<=0) | (np.isinf(vcd)) | SZA>80.0)] = np.nan
-        vcd = (vcd).astype('float16')
-        # read quality flag
-        quality_flag_temp = _read_group_nc(
-            fname, ['HDFEOS', 'SWATHS',
-                    'OMI Column Amount O3', 'Data Fields'], 'QualityFlags').astype('float16')
-        quality_flag = np.zeros_like(quality_flag_temp)*-100.0
-        for i in range(0, np.shape(quality_flag)[0]):
-            for j in range(0, np.shape(quality_flag)[1]):
-                flag = '{0:08b}'.format(int(quality_flag_temp[i, j]))
-                if flag[-1] == '0':
-                    quality_flag[i, j] = 1.0
 
-        uncertainty = (vcd*0.04).astype('float16') # 4 percent error based on several studies
+    # say which file is being read
+    print("Currently reading: " + fname.split('/')[-1])
+    # read timeHDFEOS/SWATHS/OMI Column Amount O3/Geolocation Fields/Latitude
+    time = _read_group_nc(fname, ['HDFEOS', 'SWATHS',
+                                  'OMI Column Amount O3', 'Geolocation Fields'], 'Time')
+    time = np.squeeze(np.nanmean(time))
+    time = datetime.datetime(
+        1993, 1, 1) + datetime.timedelta(seconds=int(time))
+    # read lat/lon at centers
+    latitude_center = _read_group_nc(
+        fname, ['HDFEOS', 'SWATHS',
+                'OMI Column Amount O3', 'Geolocation Fields'], 'Latitude').astype('float32')
+    longitude_center = _read_group_nc(
+        fname, ['HDFEOS', 'SWATHS',
+                'OMI Column Amount O3', 'Geolocation Fields'], 'Longitude').astype('float32')
 
-        # no need to read tropopause for total O3
-        tropopause = np.empty((1))
-        SWs = np.empty((1))
-        # populate omi class
-        omi_o3 = satellite(vcd, vcd, time, [], tropopause, latitude_center,
-                           longitude_center, [], [], uncertainty, quality_flag, [], [], SWs, [], [], [], [], [])
-        # interpolation
-        if (ctm_models_coordinate is not None):
-            print('Currently interpolating ...')
-            grid_size = 2.0  # degree
-            omi_o3 = interpolator(
-                1, grid_size, omi_o3, ctm_models_coordinate, flag_thresh=0.0)
-        # return
-        return omi_o3
+    SZA = _read_group_nc(
+        fname, ['HDFEOS', 'SWATHS',
+                'OMI Column Amount O3', 'Geolocation Fields'], 'SolarZenithAngle').astype('float32')
+    # read hcho
+    vcd = _read_group_nc(
+        fname, ['HDFEOS', 'SWATHS',
+                'OMI Column Amount O3', 'Data Fields'], 'ColumnAmountO3')
+    vcd[np.where((vcd <= 0) | (np.isinf(vcd)) | (SZA > 80.0))] = np.nan
+    vcd = (vcd).astype('float16')
+    # read quality flag
+    quality_flag_temp = _read_group_nc(
+        fname, ['HDFEOS', 'SWATHS',
+                'OMI Column Amount O3', 'Data Fields'], 'QualityFlags').astype('float16')
+    quality_flag = np.zeros_like(quality_flag_temp)*-100.0
+    for i in range(0, np.shape(quality_flag)[0]):
+        for j in range(0, np.shape(quality_flag)[1]):
+            flag = '{0:08b}'.format(int(quality_flag_temp[i, j]))
+            if flag[-1] == '0':
+                quality_flag[i, j] = 1.0
+
+    # 4 percent error based on several studies
+    uncertainty = (vcd*0.04).astype('float16')
+
+    # no need to read tropopause for total O3
+    tropopause = np.empty((1))
+    SWs = np.empty((1))
+    # populate omi class
+    omi_o3 = satellite(vcd, vcd, time, [], tropopause, latitude_center,
+                       longitude_center, [], [], uncertainty, quality_flag, [], [], SWs, [], [], [], [], [])
+    # interpolation
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 2.0  # degree
+        omi_o3 = interpolator(
+            1, grid_size, omi_o3, ctm_models_coordinate, flag_thresh=0.0)
+    # return
+    return omi_o3
 
 
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):

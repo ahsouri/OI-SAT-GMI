@@ -122,7 +122,7 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmax_error = 15.0
         vmin_incre = -5.0
         vmax_incre = 5.0
-        unit = 1   
+        unit = 1
     if gasname == 'NO2':
         vmin_vcd = 0.0
         vmax_vcd = 10.0
@@ -136,7 +136,7 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmax_error = 30.0
         vmin_incre = -20.0
         vmax_incre = 20.0
-        unit = 3 # DU
+        unit = 3  # DU
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +
