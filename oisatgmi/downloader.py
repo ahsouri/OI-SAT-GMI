@@ -289,7 +289,7 @@ class downloader(object):
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(-90, 90, -180, 180, '2005-03-01', '2005-03-31')
+    dl_obj = downloader(-90, 90, -180, 180, '2011-08-01', '2011-08-31')
     #dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
     #dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_hcho/'))
     dl_obj.download_omi_l2('O3', Path('download_bucket/omi_o3/'))

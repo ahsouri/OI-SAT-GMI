@@ -561,7 +561,7 @@ def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satel
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 2.0  # degree
+        grid_size = 0.25  # degree
         omi_o3 = interpolator(
             1, grid_size, omi_o3, ctm_models_coordinate, flag_thresh=0.0)
     # return
@@ -742,9 +742,9 @@ if __name__ == "__main__":
     reader_obj.read_ctm_data(
         '200503', 'O3', frequency_opt='3-hourly', averaged=True)
     reader_obj.add_satellite_data(
-        'OMI_O3', Path('download_bucket/omi_o3/subset'))
+        'OMI_O3', Path('download_bucket/omi_o3/'))
     reader_obj.read_satellite_data(
-        '200503', read_ak=False, trop=False, num_job=1)
+        '201108', read_ak=False, trop=False, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
@@ -766,4 +766,4 @@ if __name__ == "__main__":
     moutput["quality_flag"] = output2
     moutput["lat"] = latitude
     moutput["lon"] = longitude
-    savemat("vcds.mat", moutput)
+    savemat("vcds_1.mat", moutput)

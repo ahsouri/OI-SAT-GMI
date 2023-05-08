@@ -20,7 +20,7 @@ ctm_freq: '3-hourly'
 ctm_avg: True
 
 # error in the model VCD (%)
-ctm_error: 40.0
+ctm_error: 50.0
 
 # target gas (NO2, HCHO)
 gas: 'HCHO'
