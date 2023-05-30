@@ -62,7 +62,7 @@ for fname in oi_diag_files:
     sf = ext_data.createVariable("SF", "f8", ("time", "lat", "lon",))
     sf.units = "fraction"
 
-    times = 0.0
+    times[:] = 0.0
     latitudes[:] = lat[:, 0].squeeze()
     longitudes[:] = lon[0, :].squeeze()
     sf[:, :, :] = scaling_factors
@@ -80,11 +80,11 @@ for fname in oi_diag_files:
 # creating fake OI factors outside of the boundary
 for yr in range(1990, 2005):
     for mm in range(1, 13):
-        print("Now faking for " + str(yr) + str(mm))
+        print("Now faking for " + str(yr) + f"{mm:02}")
         time_diag = datetime.datetime(
             int(yr), int(mm), 1) + datetime.timedelta(seconds=int(0.0))
         
-        fbasename = 'NO2_' + str(yr) + str(mm) + '.nc'
+        fbasename = 'HCHO_' + str(yr) +  f"{mm:02}" + '.nc'
 
         # write to the new scheme
         ext_data = Dataset(ext_files_folder.as_posix() + "/" +
@@ -108,7 +108,7 @@ for yr in range(1990, 2005):
         sf = ext_data.createVariable("SF", "f8", ("time", "lat", "lon",))
         sf.units = "fraction"
 
-        times = 0.0
+        times[:] = 0.0
         latitudes[:] = lat[:, 0].squeeze()
         longitudes[:] = lon[0, :].squeeze()
         sf[:, :, :] = 1.0
