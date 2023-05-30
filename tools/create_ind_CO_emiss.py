@@ -3,13 +3,12 @@ from pathlib import Path
 import datetime
 import sys
 import os
-import glob
 from netCDF4 import Dataset
 import warnings
 import time
-from scipy.io import savemat
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 
 def _read_nc(filename, var):
     # reading nc files without a group
@@ -18,6 +17,7 @@ def _read_nc(filename, var):
     out = np.array(nc_fid.variables[var])
     nc_fid.close()
     return np.squeeze(out)
+
 
 merra2_path = '/css/merra2gmi/pub'
 
@@ -29,17 +29,18 @@ reactions = {}
 reactions["rj2"] = ['QQJ011', 'QQJ012', 'QQJ047', 'QQJ050']
 reactions["rk2"] = ['QQK204', 'QQK212', 'QQK213']
 reactions["rk3"] = ['QQK046', 'QQK066']
-reactions["rk4"] = ['QQK091', 'QQK101','QQK103','QQK109']
-factors = [1,1,1,1,0.42,2.0,1,1,1,1,1,1,1]
+reactions["rk4"] = ['QQK091', 'QQK101', 'QQK103', 'QQK109']
+factors = [1, 1, 1, 1, 0.42, 2.0, 1, 1, 1, 1, 1, 1, 1]
 for yr in range(1990, 2020):
     for mm in range(1, 13):
 
         time_diag = datetime.datetime(
-             int(yr), int(mm), 1) + datetime.timedelta(seconds=int(0.0))
-        fname = 'CO_Indirect_MERRA2GMI_' + str(time_diag.year)  + f"{time_diag.month:02}" + '.nc'
+            int(yr), int(mm), 1) + datetime.timedelta(seconds=int(0.0))
+        fname = 'CO_Indirect_MERRA2GMI_' + \
+            str(time_diag.year) + f"{time_diag.month:02}" + '.nc'
         print("Now processing " + fname)
         merra2_dir = merra2_path + '/Y' + \
-           str(time_diag.year) + '/M' + f"{time_diag.month:02}" + '/'
+            str(time_diag.year) + '/M' + f"{time_diag.month:02}" + '/'
         merra2_dir = str(merra2_dir)
 
         var = np.zeros((72, 361, 576))
@@ -47,19 +48,19 @@ for yr in range(1990, 2020):
         for groups in reactions:
             for react in reactions[groups]:
                 cnt += 1
-                var = var +  _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
-                      f"{time_diag.month:02}" + '.nc4',react)*float(factors[cnt])
+                var = var + _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
+                                     f"{time_diag.month:02}" + '.nc4', react)*float(factors[cnt])
                 lat = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
-                      f"{time_diag.month:02}" + '.nc4', 'lat')
+                               f"{time_diag.month:02}" + '.nc4', 'lat')
                 lon = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
-                      f"{time_diag.month:02}" + '.nc4', 'lon')
+                               f"{time_diag.month:02}" + '.nc4', 'lon')
                 lev = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
-                      f"{time_diag.month:02}" + '.nc4', 'lon')
+                               f"{time_diag.month:02}" + '.nc4', 'lon')
 
         fname_height_mid = merra2_dir + 'MERRA2_GMI.tavg3_3d_met_Nv.monthly.' + str(time_diag.year) +\
-                    f"{time_diag.month:02}" + '.nc4'
+            f"{time_diag.month:02}" + '.nc4'
         fname_height_edge = merra2_dir + 'MERRA2_GMI.tavg3_3d_mst_Ne.monthly.' + str(time_diag.year) +\
-                    f"{time_diag.month:02}"  + '.nc4'
+            f"{time_diag.month:02}" + '.nc4'
         height_mid = _read_nc(fname_height_mid, 'H')
         height_edge = _read_nc(fname_height_edge, 'ZLE')
         # thickness
@@ -92,14 +93,14 @@ for yr in range(1990, 2020):
         levels.long_name = "vertical layer"
         levels.positive = "down"
 
-
-        emiss = ext_data.createVariable("emiss", "f8", ("time","lev", "lat", "lon",))
+        emiss = ext_data.createVariable(
+            "emiss", "f8", ("time", "lev", "lat", "lon",))
         emiss.units = "kg m^-2 s^-1"
 
         times = 0.0
         latitudes[:] = lat
         longitudes[:] = lon
-        emiss[:, :, :,:] = var
+        emiss[:, :, :, :] = var
 
         # global attributes
         ext_data.Source = "OI-SAT-GMI tool (https://doi.org/10.5281/zenodo.7757427)"
