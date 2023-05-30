@@ -31,7 +31,7 @@ reactions["rk2"] = ['QQK204', 'QQK212', 'QQK213']
 reactions["rk3"] = ['QQK046', 'QQK066']
 reactions["rk4"] = ['QQK091', 'QQK101', 'QQK103', 'QQK109']
 factors = [1, 1, 1, 1, 0.42, 2.0, 1, 1, 1, 1, 1, 1, 1]
-for yr in range(1990, 2020):
+for yr in range(1990, 2005):
     for mm in range(1, 13):
 
         time_diag = datetime.datetime(
@@ -55,7 +55,7 @@ for yr in range(1990, 2020):
                 lon = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
                                f"{time_diag.month:02}" + '.nc4', 'lon')
                 lev = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
-                               f"{time_diag.month:02}" + '.nc4', 'lon')
+                               f"{time_diag.month:02}" + '.nc4', 'lev')
 
         fname_height_mid = merra2_dir + 'MERRA2_GMI.tavg3_3d_met_Nv.monthly.' + str(time_diag.year) +\
             f"{time_diag.month:02}" + '.nc4'
@@ -97,11 +97,11 @@ for yr in range(1990, 2020):
             "emiss", "f8", ("time", "lev", "lat", "lon",))
         emiss.units = "kg m^-2 s^-1"
 
-        times = 0.0
+        times[:] = 0.0
         latitudes[:] = lat
         longitudes[:] = lon
         emiss[:, :, :, :] = var
-
+        levels[:] = lev
         # global attributes
         ext_data.Source = "OI-SAT-GMI tool (https://doi.org/10.5281/zenodo.7757427)"
         ext_data.Version = "0.0.8"
