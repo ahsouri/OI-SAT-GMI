@@ -27,11 +27,11 @@ if not os.path.exists(ext_files_folder.as_posix()):
 
 reactions = {}
 reactions["rj2"] = ['QQJ011', 'QQJ012', 'QQJ047', 'QQJ050']
-reactions["rk2"] = ['QQK204', 'QQK212', 'QQK213']
+reactions["rk2"] = ['QQK204', 'QQK212', 'QQK213','QQK222']
 reactions["rk3"] = ['QQK046', 'QQK066']
 reactions["rk4"] = ['QQK091', 'QQK101', 'QQK103', 'QQK109']
-factors = [1, 1, 1, 1, 0.42, 2.0, 1, 1, 1, 1, 1, 1, 1]
-for yr in range(1990, 2005):
+factors = [1, 1, 1, 1, 0.42, 2.0, 1, 0.05, 1, 1, 1, 1, 1, 1]
+for yr in range(2005, 2020):
     for mm in range(1, 13):
 
         time_diag = datetime.datetime(
@@ -68,6 +68,7 @@ for yr in range(1990, 2005):
 
         # from mole/m3/s to kg/m2/s
         var = var*dh*28.01/1000.0
+        var = np.sum(var,axis=0)
 
         # write to a ncfile
         ext_data = Dataset(ext_files_folder.as_posix() + "/" +
@@ -76,7 +77,7 @@ for yr in range(1990, 2005):
         time_dim = ext_data.createDimension("time", 1)
         lat_dim = ext_data.createDimension("lat", np.size(lat))
         lon_dim = ext_data.createDimension("lon", np.size(lon))
-        lev_dim = ext_data.createDimension("lev", 72)
+        #lev_dim = ext_data.createDimension("lev", 72)
 
         times = ext_data.createVariable("time", "f8", ("time",))
         times.long_name = "time"
@@ -88,20 +89,20 @@ for yr in range(1990, 2005):
         longitudes = ext_data.createVariable("lon", "f8", ("lon",))
         longitudes.units = "degrees_east"
         longitudes.long_name = "longitude"
-        levels = ext_data.createVariable("lev", "f8", ("lev",))
-        levels.units = "layer"
-        levels.long_name = "vertical layer"
-        levels.positive = "down"
+        #levels = ext_data.createVariable("lev", "f8", ("lev",))
+        #levels.units = "layer"
+        #levels.long_name = "vertical layer"
+        #levels.positive = "down"
 
         emiss = ext_data.createVariable(
-            "emiss", "f8", ("time", "lev", "lat", "lon",))
+            "emiss", "f8", ("time", "lat", "lon",))
         emiss.units = "kg m^-2 s^-1"
 
         times[:] = 0.0
         latitudes[:] = lat
         longitudes[:] = lon
-        emiss[:, :, :, :] = var
-        levels[:] = lev
+        emiss[:, :, :] = var
+        #levels[:] = lev
         # global attributes
         ext_data.Source = "OI-SAT-GMI tool (https://doi.org/10.5281/zenodo.7757427)"
         ext_data.Version = "0.0.8"
