@@ -18,7 +18,16 @@ def _read_nc(filename, var):
     nc_fid.close()
     return np.squeeze(out)
 
+# first we should calculate monthly-basis scaling factors from OMI (2005-2019)
+omi_hcho_sf_path = "/discover/nobackup/asouri/SHARED/OI_HCHO_OMI_2005_2019/"
+for mm in range(1,13):
+    sf_all = []
+    for yr in range(2005,2020):
+        sf = _read_nc(omi_hcho_sf_path + 'HCHO_' + str(yr) + f"{mm:02}" + '.nc','SF')
+        sf_all.append(sf)
 
+OMI_SF = np.nanmean(np.array(sf_all),axis=0)
+reactions_subject_to_SF = ['QQJ011','QQJ012','QQK046']
 merra2_path = '/css/merra2gmi/pub'
 
 ext_files_folder = Path(str(sys.argv[1]))
@@ -48,8 +57,14 @@ for yr in range(2005, 2020):
         for groups in reactions:
             for react in reactions[groups]:
                 cnt += 1
-                var = var + _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
-                                     f"{time_diag.month:02}" + '.nc4', react)*float(factors[cnt])
+                reaction = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
+                                     f"{time_diag.month:02}" + '.nc4', react)
+                if react in reactions_subject_to_SF: # correct HCHO+hv and HCHO+OH using OMI-HCHO
+                   for k in range(0,72):
+                       var[k,:,:] = var[k,:,:] + reaction[k,:,:]*float(factors[cnt])*OMI_SF
+                else:
+                   var = var + reaction*float(factors[cnt])
+
                 lat = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
                                f"{time_diag.month:02}" + '.nc4', 'lat')
                 lon = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
@@ -68,7 +83,6 @@ for yr in range(2005, 2020):
 
         # from mole/m3/s to kg/m2/s
         var = var*dh*28.01/1000.0
-        var = np.sum(var,axis=0)
 
         # write to a ncfile
         ext_data = Dataset(ext_files_folder.as_posix() + "/" +
@@ -77,7 +91,7 @@ for yr in range(2005, 2020):
         time_dim = ext_data.createDimension("time", 1)
         lat_dim = ext_data.createDimension("lat", np.size(lat))
         lon_dim = ext_data.createDimension("lon", np.size(lon))
-        #lev_dim = ext_data.createDimension("lev", 72)
+        lev_dim = ext_data.createDimension("lev", 72)
 
         times = ext_data.createVariable("time", "f8", ("time",))
         times.long_name = "time"
@@ -89,20 +103,20 @@ for yr in range(2005, 2020):
         longitudes = ext_data.createVariable("lon", "f8", ("lon",))
         longitudes.units = "degrees_east"
         longitudes.long_name = "longitude"
-        #levels = ext_data.createVariable("lev", "f8", ("lev",))
-        #levels.units = "layer"
-        #levels.long_name = "vertical layer"
-        #levels.positive = "down"
+        levels = ext_data.createVariable("lev", "f8", ("lev",))
+        levels.units = "layer"
+        levels.long_name = "vertical layer"
+        levels.positive = "down"
 
         emiss = ext_data.createVariable(
-            "emiss", "f8", ("time", "lat", "lon",))
+            "emiss", "f8", ("time","lev", "lat", "lon",))
         emiss.units = "kg m^-2 s^-1"
 
         times[:] = 0.0
         latitudes[:] = lat
         longitudes[:] = lon
-        emiss[:, :, :] = var
-        #levels[:] = lev
+        emiss[:, :, :, :] = var
+        levels[:] = lev
         # global attributes
         ext_data.Source = "OI-SAT-GMI tool (https://doi.org/10.5281/zenodo.7757427)"
         ext_data.Version = "0.0.8"
