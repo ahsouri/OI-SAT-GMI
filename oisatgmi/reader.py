@@ -128,9 +128,9 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
     if frequency_opt == '3-hourly':
         # read meteorological and chemical fields
         tavg3_3d_met_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_met_Nv.*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_met_Nv." + str(YYYYMM) + "*.nc4"))
         tavg3_3d_gas_files = sorted(
-            glob.glob(product_dir + "/*tavg3_3d_tac_Nv.*" + str(YYYYMM) + "*.nc4"))
+            glob.glob(product_dir + "/*tavg3_3d_tac_Nv." + str(YYYYMM) + "*.nc4"))
         if len(tavg3_3d_gas_files) != len(tavg3_3d_met_files):
             raise Exception(
                 "the data are not consistent")
@@ -139,6 +139,56 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
             tavg3_3d_met_files[k], tavg3_3d_gas_files[k], gas_to_be_saved) for k in range(len(tavg3_3d_met_files)))
         return outputs
 
+def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1) -> ctm_model:
+    '''
+       ECCOH reader
+       Inputs:
+             product_dir [str]: the folder containing the monthly ECCOH data
+             YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
+             num_obj [int]: number of jobs for parallel computation
+       Output:
+             eccoh_fields [ctm_model]: a dataclass format (see config.py)
+    '''
+    # a nested function
+    def eccoh_reader_wrapper(fname: str, gasname: str) -> ctm_model:
+        # read the data
+        print("Currently reading: " + fname.split('/')[-1])
+        ctmtype = "ECCOH"
+        # read coordinates
+        lon = _read_nc(fname, 'lon')
+        lat = _read_nc(fname, 'lat')
+        lons_grid, lats_grid = np.meshgrid(lon, lat)
+        latitude = lats_grid
+        longitude = lons_grid
+        # read time
+        time_attr = _get_nc_attr(fname, 'time')
+        timebegin_date = str(time_attr["begin_date"])
+        timebegin_date = [int(timebegin_date[0:4]), int(
+            timebegin_date[4:6]), int(timebegin_date[6:8])]
+
+        time = [datetime.datetime(timebegin_date[0], timebegin_date[1], timebegin_date[2])]
+        # read pressure information
+        delta_p = _read_nc(fname, 'DELP').astype('float32')/100.0
+        delta_p = np.flip(delta_p, axis=1)  # from bottom to top
+        pressure_mid = _read_nc(fname, 'PL').astype('float32')/100.0
+        pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
+        # read gas concentration
+        temp = np.flip(_read_nc(
+            fname, gasname), axis=1)*1e9  # ppbv
+        # the purpose of this part is to reduce memory usage
+        gas_profile = temp.astype('float32')
+        temp = []
+        # shape up the ctm class
+        eccoh_data = ctm_model(latitude, longitude, time, gas_profile,
+                             pressure_mid, [], delta_p, ctmtype, False)
+        return eccoh_data
+
+    eccoh_files = sorted(
+            glob.glob(product_dir + "/*eccoh_Nv." + str(YYYYMM) + "*.nc4"))
+    # define gas profiles to be saved
+    outputs = Parallel(n_jobs=num_job)(delayed(eccoh_reader_wrapper)(
+            eccoh_files[k], gas_to_be_saved) for k in range(len(eccoh_files)))
+    return outputs
 
 def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
@@ -760,6 +810,7 @@ class readers(object):
             Input:
                 product_name [str]: an string specifying the type of data to read:
                                 "GMI"
+                                "ECCOH"
                 product_dir  [Path]: a path object describing the path of CTM files
         '''
 
@@ -836,7 +887,9 @@ class readers(object):
             else:
                 self.ctm_data = ctm_data
                 ctm_data = []
-
+        if self.ctm_product == 'ECCOH':
+            self.ctm_data = ECCOH_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)
+            ctm_data = []
 
 # testing
 if __name__ == "__main__":

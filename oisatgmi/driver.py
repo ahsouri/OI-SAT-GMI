@@ -144,7 +144,7 @@ class oisatgmi(object):
 if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
-    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'CO', '3-hourly', 'MOPITT',
+    oisatgmi_obj.read_data('ECCOH', Path('/home/asouri/git_repos/mule/eccoh_sample'), 'CO', 'monthly', 'MOPITT',
                            Path('download_bucket/mopitt_CO/'), '200503',
                            averaged=True, read_ak=True, trop=False, num_job=1)
     # oisatgmi_obj.recal_amf()

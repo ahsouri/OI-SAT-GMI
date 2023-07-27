@@ -57,13 +57,22 @@ def ak_conv(ctm_data: list, sat_data: list):
         Mair = 28.97e-3
         g = 9.80665
         N_A = 6.02214076e23
-        ctm_mid_pressure = np.nanmean(ctm_data[closest_index_day].pressure_mid[:, :, :, :], axis=0).squeeze(
-        )
-        ctm_profile = np.nanmean(ctm_data[closest_index_day].gas_profile[:, :, :, :], axis=0).squeeze(
-        )
-        ctm_deltap = np.nanmean(ctm_data[closest_index_day].delta_p[:, :, :, :], axis=0).squeeze(
-        )
-        ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
+        if ctm_data[0].ctmtype == "ECCOH":
+           ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[ :, :, :].squeeze(
+           )
+           ctm_profile = ctm_data[closest_index_day].gas_profile[ :, :, :].squeeze(
+           )
+           ctm_deltap = ctm_data[closest_index_day].delta_p[ :, :, :].squeeze(
+           )
+           ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
+        elif ctm_data[0].ctmtype == "GMI":
+           ctm_mid_pressure = np.nanmean(ctm_data[closest_index_day].pressure_mid[:, :, :, :], axis=0).squeeze(
+           )
+           ctm_profile = np.nanmean(ctm_data[closest_index_day].gas_profile[:, :, :, :], axis=0).squeeze(
+           )
+           ctm_deltap = np.nanmean(ctm_data[closest_index_day].delta_p[:, :, :, :], axis=0).squeeze(
+           )
+           ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
         # see if we need to upscale the ctm fields
         if L2_granule.ctm_upscaled_needed == True:
             ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
