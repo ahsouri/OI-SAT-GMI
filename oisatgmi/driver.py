@@ -4,6 +4,7 @@ from oisatgmi.amf_recal import amf_recal
 from oisatgmi.averaging import averaging
 from oisatgmi.optimal_interpolation import OI
 from oisatgmi.report import report
+from oisatgmi.ak_conv import ak_conv
 import numpy as np
 from scipy.io import savemat
 from numpy import dtype
@@ -33,6 +34,11 @@ class oisatgmi(object):
     def recal_amf(self):
 
         self.reader_obj.sat_data = amf_recal(
+            self.reader_obj.ctm_data, self.reader_obj.sat_data)
+
+    def conv_ak(self):
+
+        self.reader_obj.sat_data = ak_conv(
             self.reader_obj.ctm_data, self.reader_obj.sat_data)
 
     def average(self, startdate: str, enddate: str, gasname=None):
@@ -138,11 +144,12 @@ class oisatgmi(object):
 if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
-    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'O3', '3-hourly', 'OMI_O3',
-                           Path('download_bucket/omi_o3/'), '200503',
-                           averaged=True, read_ak=False, trop=False, num_job=1)
-    oisatgmi_obj.recal_amf()
-    oisatgmi_obj.average('2005-03-01', '2005-04-01', gasname='O3')
+    oisatgmi_obj.read_data('GMI', Path('download_bucket/gmi/'), 'CO', '3-hourly', 'MOPITT',
+                           Path('download_bucket/mopitt_CO/'), '200503',
+                           averaged=True, read_ak=True, trop=False, num_job=1)
+    # oisatgmi_obj.recal_amf()
+    oisatgmi_obj.conv_ak()
+    oisatgmi_obj.average('2005-03-01', '2005-04-01')
     oisatgmi_obj.oi(error_ctm=10.0)
-    oisatgmi_obj.reporting('O3_200503', 'O3', folder='report')
-    oisatgmi_obj.write_to_nc('O3_200503', 'diag')
+    oisatgmi_obj.reporting('CO_200503_new', 'CO', folder='report')
+    oisatgmi_obj.write_to_nc('CO_200503_new', 'diag')

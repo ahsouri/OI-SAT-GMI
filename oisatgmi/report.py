@@ -48,6 +48,8 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
         cbar.set_label('$ [Unitless] $', fontsize=18)
     elif unit == 3:
         cbar.set_label('$ [DU] $', fontsize=18)
+    elif unit == 4:
+        cbar.set_label(r'$[ \times 10^{18}molec.cm^{-2}] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
@@ -137,6 +139,20 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmin_incre = -20.0
         vmax_incre = 20.0
         unit = 3  # DU
+    if gasname == 'CO':
+        vmin_vcd = 0.0
+        vmax_vcd = 3.0
+        vmax_error = 0.2
+        vmin_incre = -2.0
+        vmax_incre = 2.0
+        unit = 4
+        # scaling to match 1x10^18
+        ctm_vcd_before = ctm_vcd_before*1e-3
+        ctm_vcd_after = ctm_vcd_after*1e-3
+        sat_vcd = sat_vcd*1e-3
+        sat_err = sat_err*1e-3
+        increment = increment*1e-3
+        error_OI = error_OI*1e-3
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +

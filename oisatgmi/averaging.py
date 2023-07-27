@@ -1,6 +1,7 @@
 import numpy as np
 import datetime
 from scipy.io import savemat
+from oisatgmi.config import satellite_amf
 
 
 def _daterange(start_date, end_date):
@@ -60,14 +61,16 @@ def averaging(startdate: str, enddate: str, reader_obj):
                     sat_chosen_vcd.append(sat_data.vcd)
                     sat_chosen_error.append(sat_data.uncertainty)
                     ctm_chosen_vcd.append(sat_data.ctm_vcd)
-                    sat_chosen_new_amf.append(sat_data.new_amf)
-                    sat_chosen_old_amf.append(sat_data.old_amf)
+                    if isinstance(sat_data, satellite_amf):
+                        sat_chosen_new_amf.append(sat_data.new_amf)
+                        sat_chosen_old_amf.append(sat_data.old_amf)
             sat_chosen_vcd = np.array(sat_chosen_vcd)
             sat_chosen_vcd[np.isinf(sat_chosen_vcd)] = np.nan
             sat_chosen_error = np.array(sat_chosen_error)
             ctm_chosen_vcd = np.array(ctm_chosen_vcd)
-            sat_chosen_new_amf = np.array(sat_chosen_new_amf)
-            sat_chosen_old_amf = np.array(sat_chosen_old_amf)
+            if isinstance(sat_data, satellite_amf):
+                sat_chosen_new_amf = np.array(sat_chosen_new_amf)
+                sat_chosen_old_amf = np.array(sat_chosen_old_amf)
         if np.size(sat_chosen_vcd) != 0:
             sat_averaged_vcd[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(sat_chosen_vcd, axis=0))
@@ -75,34 +78,39 @@ def averaging(startdate: str, enddate: str, reader_obj):
                 list_years)] = np.sqrt(np.squeeze(np.nanmean(sat_chosen_error**2, axis=0)))
             ctm_averaged_vcd[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(ctm_chosen_vcd, axis=0))
-        if np.size(sat_new_amf) != 0:
-            sat_old_amf[:, :, month - min(list_months), year - min(
-                list_years)] = np.squeeze(np.nanmean(sat_chosen_old_amf, axis=0))
-            sat_new_amf[:, :, month - min(list_months), year - min(
-                list_years)] = np.squeeze(np.nanmean(sat_chosen_new_amf, axis=0))
+        if isinstance(sat_data, satellite_amf):
+            if np.size(sat_new_amf) != 0:
+                sat_old_amf[:, :, month - min(list_months), year - min(
+                    list_years)] = np.squeeze(np.nanmean(sat_chosen_old_amf, axis=0))
+                sat_new_amf[:, :, month - min(list_months), year - min(
+                    list_years)] = np.squeeze(np.nanmean(sat_chosen_new_amf, axis=0))
     # squeeze it
     sat_averaged_vcd = sat_averaged_vcd.squeeze()
     sat_averaged_error = sat_averaged_error.squeeze()
     ctm_averaged_vcd = ctm_averaged_vcd.squeeze()
-    sat_old_amf = sat_old_amf.squeeze()
-    sat_new_amf = sat_new_amf.squeeze()
+    if isinstance(sat_data, satellite_amf):
+        sat_old_amf = sat_old_amf.squeeze()
+        sat_new_amf = sat_new_amf.squeeze()
     # average over all data
     if sat_averaged_vcd.ndim == 4:
         sat_averaged_vcd = np.nanmean(np.nanmean(
             sat_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
         ctm_averaged_vcd = np.nanmean(np.nanmean(
             ctm_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
-        sat_old_amf = np.nanmean(np.nanmean(
-            sat_old_amf, axis=3).squeeze(), axis=2).squeeze()
-        sat_new_amf = np.nanmean(np.nanmean(
-            sat_new_amf, axis=3).squeeze(), axis=2).squeeze()
         sat_averaged_error = np.sqrt(np.nanmean(np.nanmean(
             sat_averaged_error**2, axis=3).squeeze(), axis=2).squeeze())
+        if isinstance(sat_data, satellite_amf):
+            sat_old_amf = np.nanmean(np.nanmean(
+                sat_old_amf, axis=3).squeeze(), axis=2).squeeze()
+            sat_new_amf = np.nanmean(np.nanmean(
+                sat_new_amf, axis=3).squeeze(), axis=2).squeeze()
     if sat_averaged_vcd.ndim == 3:
         sat_averaged_vcd = np.nanmean(sat_averaged_vcd, axis=2).squeeze()
         ctm_averaged_vcd = np.nanmean(ctm_averaged_vcd, axis=2).squeeze()
-        sat_old_amf = np.nanmean(sat_old_amf, axis=2).squeeze()
-        sat_new_amf = np.nanmean(sat_new_amf, axis=2).squeeze()
         sat_averaged_error = np.sqrt(np.nanmean(
             sat_averaged_error**2, axis=2).squeeze())
-    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_new_amf, sat_old_amf
+        if isinstance(sat_data, satellite_amf):
+            sat_old_amf = np.nanmean(sat_old_amf, axis=2).squeeze()
+            sat_new_amf = np.nanmean(sat_new_amf, axis=2).squeeze()
+
+    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_new_amf.squeeze(), sat_old_amf.squeeze()

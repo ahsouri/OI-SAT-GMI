@@ -1,5 +1,5 @@
 import numpy as np
-from oisatgmi.config import satellite
+from oisatgmi.config import satellite_amf, satellite_opt
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from scipy.interpolate import RBFInterpolator
@@ -14,7 +14,7 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         interpolator = LinearNDInterpolator(
             interpol_func, (Z).flatten(), fill_value=np.nan)
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold*1.0] = np.nan
     elif interpolator_type == 2:
         interpolator = NearestNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
@@ -84,7 +84,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         return X, Y, Z, upscaled_ctm_needed
 
 
-def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, ctm_models_coordinate: dict, flag_thresh=0.75) -> satellite:
+def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_coordinate: dict, flag_thresh=0.75):
     '''
         The interpolator function
         Input:
@@ -94,11 +94,10 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
                     3 > RBF (thin_plate_spline)
                     4 > Poppy (not implemented yet)
             grid_size [float]: the size of grids defined by the user
-            sat_data  [satellite]: a dataclass for satellite data
+            sat_data  [satellite_amf or satellite_opt]: a dataclass for satellite data
             ctm_models_coordinate [dic]: a dictionary containing lat and lon of the model
             flag_thresh [float]: the quality flag threshold
     '''
-
     # creating the delaunay triangulation on satellite coordinates
     # model lat and lon
     ctm_latitude = ctm_models_coordinate['Latitude']
@@ -150,10 +149,11 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
     upscaled_X, upscaled_Y, vcd, upscaled_ctm_needed = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.vcd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
-    print('....................... scd')
-    _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
-        tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-        ctm_models_coordinate, grid_size, threshold_ctm)
+    if isinstance(sat_data, satellite_amf):
+        print('....................... scd')
+        _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+            tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+            ctm_models_coordinate, grid_size, threshold_ctm)
     print('....................... tropopause')
     if np.size(sat_data.tropopause) != 1:
         _, _, tropopause, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
@@ -161,6 +161,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
             ctm_models_coordinate, grid_size, threshold_ctm)
     else:
         tropopause = np.empty((1))
+
     latitude_center = upscaled_Y
     longitude_center = upscaled_X
     print('....................... error')
@@ -168,21 +169,48 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
         tri, sat_data.uncertainty**2*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
     uncertainty = np.sqrt(uncertainty)
-    # interpolate 3Ds fields
-    if np.size(sat_data.scattering_weights) != 1:
-        scattering_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
-                                       np.shape(upscaled_X)[1]))
+
+    # interpolate 3Ds fields for two-step retrievals (scattering weights, for example OMI NO2)
+    if isinstance(sat_data, satellite_amf):
+        if np.size(sat_data.scattering_weights) != 1:
+            scattering_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                           np.shape(upscaled_X)[1]))
+            for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+                print('....................... SWs [' + str(z+1) +
+                      '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+                _, _, scattering_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+                                                                 _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
+                                                                               * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+            pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                     np.shape(upscaled_X)[1]))
+            for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+                print('....................... pmids [' + str(z+1) +
+                      '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+                _, _,  pressure_mid[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+                                                            _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
+                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+                                                            ctm_models_coordinate, grid_size, threshold_ctm)
+        else:
+            scattering_weights = np.empty((1))
+
+    # interpolate 3Ds fields for optimal estimation algorithms (averaging kernels; e.g., MOPITT)
+    if isinstance(sat_data, satellite_opt):
+        # because this is exclusively for MOPITT and GOSAT, we can also interpolate the prior column (or profile) here:
+        print('....................... apriori column')
+        _, _, aprior_col, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+            tri, sat_data.aprior_column*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+            ctm_models_coordinate, grid_size, threshold_ctm)
+
+        averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                      np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
-            print('....................... SWs [' + str(z+1) +
+            print('....................... AKs [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-            _, _, scattering_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
-                                                             _interpolosis(tri, sat_data.scattering_weights[z, :, :].squeeze()
-                                                                           * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
-    else:
-        scattering_weights = np.empty((1))
-    pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
-                             np.shape(upscaled_X)[1]))
-    if np.size(sat_data.scattering_weights) != 1:
+            _, _, averaging_kernels[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+                                                            _interpolosis(tri, sat_data.averaging_kernels[z, :, :].squeeze()
+                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+        pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                 np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
             print('....................... pmids [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
@@ -190,7 +218,18 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data: satellite, 
                                                         _interpolosis(tri, sat_data.pressure_mid[z, :, :].squeeze()
                                                                       * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
                                                         ctm_models_coordinate, grid_size, threshold_ctm)
-
-    interpolated_sat = satellite(vcd, scd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
-    ], [], uncertainty, [], pressure_mid, [], scattering_weights, upscaled_ctm_needed, [], [], [], [])
+        apriori_profile = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                    np.shape(upscaled_X)[1]))
+        for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+            print('....................... apriori profile [' + str(z+1) +
+                  '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+            _, _,  apriori_profile[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+                                                           _interpolosis(tri, sat_data.apriori_profile[z, :, :].squeeze()
+                                                                         * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+    if isinstance(sat_data, satellite_opt):
+        interpolated_sat = satellite_opt(vcd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
+        ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], aprior_col, apriori_profile)
+    elif isinstance(sat_data, satellite_amf):
+        interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
+        ], [], uncertainty, [], pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], [], [])
     return interpolated_sat

@@ -4,7 +4,7 @@ import datetime
 import glob
 from joblib import Parallel, delayed
 from netCDF4 import Dataset
-from oisatgmi.config import satellite, ctm_model
+from oisatgmi.config import satellite_amf, satellite_opt, ctm_model
 from oisatgmi.interpolator import interpolator
 import warnings
 from scipy.io import savemat
@@ -28,6 +28,17 @@ def _get_nc_attr(filename, var):
     attr = {}
     for attrname in nc_fid.variables[var].ncattrs():
         attr[attrname] = getattr(nc_fid.variables[var], attrname)
+    nc_fid.close()
+    return attr
+
+
+def _get_nc_attr_group_mopitt(fname):
+    nc_f = fname
+    nc_fid = Dataset(nc_f, 'r')
+    attr = {}
+    for attrname in nc_fid.groups['HDFEOS'].groups['ADDITIONAL'].groups['FILE_ATTRIBUTES'].ncattrs():
+        attr[attrname] = getattr(
+            nc_fid.groups['HDFEOS'].groups['ADDITIONAL'].groups['FILE_ATTRIBUTES'], attrname)
     nc_fid.close()
     return attr
 
@@ -129,7 +140,7 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
         return outputs
 
 
-def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite:
+def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
        TROPOMI HCHO L2 reader
        Inputs:
@@ -137,7 +148,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
-             tropomi_hcho [satellite]: a dataclass format (see config.py)
+             tropomi_hcho [satellite_amf]: a dataclass format (see config.py)
     '''
     # hcho reader
     print("Currently reading: " + fname.split('/')[-1])
@@ -196,8 +207,8 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     uncertainty = _read_group_nc(fname, 'PRODUCT',
                                  'formaldehyde_tropospheric_vertical_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
-    tropomi_hcho = satellite(vcd, scd, time, [], np.empty((1)), [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
+    tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), [], [
+    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -208,7 +219,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     return tropomi_hcho
 
 
-def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite:
+def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
        TROPOMI NO2 L2 reader
        Inputs:
@@ -217,7 +228,7 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
-             tropomi_no2 [satellite]: a dataclass format (see config.py)
+             tropomi_no2 [satellite_amf]: a dataclass format (see config.py)
     '''
     # say which file is being read
     print("Currently reading: " + fname.split('/')[-1])
@@ -297,9 +308,8 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
                     tropopause[i, j] = np.nan
     else:
         tropopause = np.empty((1))
-    # populate tropomi class
-    tropomi_no2 = satellite(vcd, scd, time, [], tropopause, latitude_center, longitude_center,
-                            [], [], uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
+    tropomi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center, longitude_center,
+                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -310,7 +320,7 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     return tropomi_no2
 
 
-def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite:
+def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
        OMI NO2 L2 reader
        Inputs:
@@ -319,7 +329,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
-             omi_no2 [satellite]: a dataclass format (see config.py)
+             omi_no2 [satellite_amf]: a dataclass format (see config.py)
     '''
     # say which file is being read
     print("Currently reading: " + fname.split('/')[-1])
@@ -402,8 +412,8 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     else:
         tropopause = np.empty((1))
     # populate omi class
-    omi_no2 = satellite(vcd, scd, time, [], tropopause, latitude_center,
-                        longitude_center, [], [], uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
+    omi_no2 = satellite_amf(vcd, scd, time, tropopause, latitude_center,
+                            longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -414,7 +424,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
     return omi_no2
 
 
-def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite:
+def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
        OMI HCHO L2 reader
        Inputs:
@@ -422,7 +432,7 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sat
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
-             omi_hcho [satellite]: a dataclass format (see config.py)
+             omi_hcho [satellite_amf]: a dataclass format (see config.py)
     '''
     # we add "try" because some files have format issue thus unreadable
     try:
@@ -455,11 +465,6 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sat
         cf_fraction_mask = cf_fraction < 0.4
         cf_fraction_mask = np.multiply(cf_fraction_mask, 1.0).squeeze()
 
-        # snowfraction = _read_group_nc(
-        #    fname, ['support_data'], 'snow_fraction').astype('float16')
-        #snowfraction_mask = snowfraction < 0.5
-        #snowfraction_mask = np.multiply(snowfraction_mask, 1.0).squeeze()
-
         quality_flag = _read_group_nc(
             fname, ['key_science_data'], 'main_data_quality_flag').astype('float16')
         quality_flag = quality_flag == 0.0
@@ -488,8 +493,8 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sat
         # no need to read tropopause for hCHO
         tropopause = np.empty((1))
         # populate omi class
-        omi_hcho = satellite(vcd, scd, time, [], tropopause, latitude_center,
-                             longitude_center, [], [], uncertainty, quality_flag, p_mid, [], SWs, [], [], [], [], [])
+        omi_hcho = satellite_amf(vcd, scd, time, tropopause, latitude_center,
+                                 longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')
@@ -502,7 +507,7 @@ def omi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sat
         return None
 
 
-def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite:
+def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
        OMI total ozone L2 reader
        Inputs:
@@ -510,7 +515,7 @@ def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satel
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
        Output:
-             omi_hcho [satellite]: a dataclass format (see config.py)
+             omi_hcho [satellite_amf]: a dataclass format (see config.py)
     '''
 
     # say which file is being read
@@ -556,8 +561,8 @@ def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satel
     tropopause = np.empty((1))
     SWs = np.empty((1))
     # populate omi class
-    omi_o3 = satellite(vcd, vcd, time, [], tropopause, latitude_center,
-                       longitude_center, [], [], uncertainty, quality_flag, [], [], SWs, [], [], [], [], [])
+    omi_o3 = satellite_amf(vcd, vcd, time, tropopause, latitude_center,
+                           longitude_center, [], [], uncertainty, quality_flag, [],  SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -566,6 +571,83 @@ def omi_reader_o3(fname: str, ctm_models_coordinate=None, read_ak=True) -> satel
             1, grid_size, omi_o3, ctm_models_coordinate, flag_thresh=0.0)
     # return
     return omi_o3
+
+
+def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_opt:
+    '''
+       MOPITT CO L3 reader
+       Inputs:
+             fname [str]: the name path of the L2 file
+             ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
+       Output:
+             mopitt_co [satellite_opt]: a dataclass format (see config.py)
+    '''
+    # say which file is being read
+    print("Currently reading: " + fname.split('/')[-1])
+    # read timeHDFEOS/SWATHS/OMI Column Amount O3/Geolocation Fields/Latitude
+    attr_mopitt = _get_nc_attr_group_mopitt(fname)
+    StartTime = (attr_mopitt["StartTime"])
+    EndTime = (attr_mopitt["StopTime"])
+
+    time = 0.5*(StartTime+EndTime)
+    time = datetime.datetime(
+        1993, 1, 1) + datetime.timedelta(seconds=int(time))
+    # read lat/lon at centers
+    latitude_center = _read_group_nc(
+        fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                'Data Fields'], 'Latitude').astype('float32')
+    longitude_center = _read_group_nc(
+        fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                'Data Fields'], 'Longitude').astype('float32')
+    longitude_center, latitude_center = np.meshgrid(
+        longitude_center, latitude_center)
+    longitude_center = np.transpose(longitude_center)
+    latitude_center = np.transpose(latitude_center)
+    # read total CO
+    vcd = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                 'Data Fields'], 'RetrievedCOTotalColumnDay')
+    vcd[np.where((vcd <= 0) | (np.isinf(vcd)))] = np.nan
+    vcd = (vcd*1e-15).astype('float16')
+    apriori_profile = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                             'Data Fields'], 'APrioriCOMixingRatioProfileDay').transpose((2, 0, 1))
+    apriori_profile[apriori_profile <= 0] = np.nan
+    apriori_col = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                         'Data Fields'], 'APrioriCOTotalColumnDay')
+    apriori_col = (apriori_col*1e-15).astype('float16')
+    apriori_col[apriori_col <= 0] = np.nan
+    # read quality flag
+    uncertainty = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                         'Data Fields'], 'RetrievedCOTotalColumnMeanUncertaintyDay')
+    uncertainty = (uncertainty*1e-15).astype('float32')
+    # no need to read tropopause for total CO
+    tropopause = np.empty((1))
+    # read pressures for AKs
+    ps = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                'Data Fields'], 'Pressure').astype('float16')
+    p_mid = np.zeros(
+        (9, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+    if read_ak == True:
+        AKs = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                     'Data Fields'], 'TotalColumnAveragingKernelDay')*1e-15
+        AKs = AKs.transpose((2, 0, 1)).astype('float16')
+        AKs = AKs[1::, :, :]
+    else:
+        AKs = np.empty((1))
+    for z in range(0, 9):
+        p_mid[z, :, :] = ps[z]
+
+    # populate mopitt class
+    mopitt = satellite_opt(vcd, time, [], tropopause, latitude_center,
+                           longitude_center, [], [], uncertainty, np.ones_like(vcd), p_mid, AKs, [], [], [], apriori_col, apriori_profile)
+    # interpolation
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 1.0  # degree
+        mopitt = interpolator(
+            1, grid_size, mopitt, ctm_models_coordinate, flag_thresh=0.0)
+    # return
+    return mopitt
 
 
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
@@ -633,6 +715,23 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
     return outputs_sat
 
 
+def mopitt_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, read_ak=True, num_job=1):
+    '''
+        reading mopitt data
+             product_dir [str]: the folder containing the tropomi data
+             ctm_models_coordinate [dict]: the ctm coordinates
+             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
+             num_job [int]: the number of jobs for parallel computation
+        Output [tropomi]: the mopitt @dataclass
+    '''
+    L3_files = sorted(glob.glob(product_dir + "/*" +
+                                YYYYMM[0:4] + YYYYMM[4::] + "*.he5"))
+    outputs_sat = Parallel(n_jobs=num_job)(delayed(mopitt_reader_co)(
+        L3_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L3_files)))
+    return outputs_sat
+
+
 class readers(object):
 
     def __init__(self) -> None:
@@ -688,6 +787,10 @@ class readers(object):
             self.sat_data = omi_reader(self.satellite_product_dir.as_posix(),
                                        self.satellite_product_name, ctm_models_coordinate,
                                        YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
+        elif satellite == 'MOPITT':
+            self.sat_data = mopitt_reader(self.satellite_product_dir.as_posix(),
+                                          ctm_models_coordinate,
+                                          YYYYMM, read_ak=read_ak, num_job=num_job)
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
@@ -740,11 +843,11 @@ if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data(
-        '200503', 'O3', frequency_opt='3-hourly', averaged=True)
+        '200503', 'CO', frequency_opt='3-hourly', averaged=True)
     reader_obj.add_satellite_data(
-        'OMI_O3', Path('download_bucket/omi_o3/'))
+        'MOPITT', Path('download_bucket/mopitt_CO/'))
     reader_obj.read_satellite_data(
-        '201108', read_ak=False, trop=False, num_job=1)
+        '200503', read_ak=True, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
@@ -766,4 +869,4 @@ if __name__ == "__main__":
     moutput["quality_flag"] = output2
     moutput["lat"] = latitude
     moutput["lon"] = longitude
-    savemat("vcds_1.mat", moutput)
+    savemat("vcds_mopitt.mat", moutput)
