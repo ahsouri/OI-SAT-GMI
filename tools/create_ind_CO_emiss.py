@@ -36,11 +36,13 @@ if not os.path.exists(ext_files_folder.as_posix()):
 
 reactions = {}
 reactions["rj2"] = ['QQJ011', 'QQJ012', 'QQJ047', 'QQJ050']
-reactions["rk2"] = ['QQK204', 'QQK212', 'QQK213','QQK222']
+reactions["rk2"] = ['QQK204', 'QQK212', 'QQK213','QQK222','QQK039']
 reactions["rk3"] = ['QQK046', 'QQK066']
 reactions["rk4"] = ['QQK091', 'QQK101', 'QQK103', 'QQK109']
-factors = [1, 1, 1, 1, 0.42, 2.0, 1, 0.05, 1, 1, 1, 1, 1, 1]
-for yr in range(2005, 2020):
+reactions["bio"] = ['EMBIOCOMETH','EMBIOCOMONOT']
+
+factors = [1, 1, 1, 1, 0.42, 2.0, 1, 0.05, -1.0, 1, 1, 1, 1, 1, 1]
+for yr in range(1990, 2020):
     for mm in range(1, 13):
 
         time_diag = datetime.datetime(
@@ -53,23 +55,31 @@ for yr in range(2005, 2020):
         merra2_dir = str(merra2_dir)
 
         var = np.zeros((72, 361, 576))
+        var_bio = np.zeros(( 361, 576))
         cnt = -1
         for groups in reactions:
             for react in reactions[groups]:
                 cnt += 1
-                reaction = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
+                if str(groups) == "bio":
+                   reaction = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_2d_dad_Nx.monthly.' + str(time_diag.year) +
+                                     f"{time_diag.month:02}" + '.nc4', react)
+                else:
+                   reaction = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
                                      f"{time_diag.month:02}" + '.nc4', react)
                 if react in reactions_subject_to_SF: # correct HCHO+hv and HCHO+OH using OMI-HCHO
                    for k in range(0,72):
                        var[k,:,:] = var[k,:,:] + reaction[k,:,:]*float(factors[cnt])*OMI_SF
                 else:
-                   var = var + reaction*float(factors[cnt])
+                   if str(groups) == "bio":
+                      var_bio = var_bio + reaction
+                   else:
+                      var = var + reaction*float(factors[cnt])
 
-                lat = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
+                lat = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + 'rk2' + '_Nv.monthly.' + str(time_diag.year) +
                                f"{time_diag.month:02}" + '.nc4', 'lat')
-                lon = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
+                lon = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + 'rk2' + '_Nv.monthly.' + str(time_diag.year) +
                                f"{time_diag.month:02}" + '.nc4', 'lon')
-                lev = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + str(groups) + '_Nv.monthly.' + str(time_diag.year) +
+                lev = _read_nc(merra2_dir + 'MERRA2_GMI.tavg24_3d_' + 'rk2' + '_Nv.monthly.' + str(time_diag.year) +
                                f"{time_diag.month:02}" + '.nc4', 'lev')
 
         fname_height_mid = merra2_dir + 'MERRA2_GMI.tavg3_3d_met_Nv.monthly.' + str(time_diag.year) +\
@@ -83,7 +93,8 @@ for yr in range(2005, 2020):
 
         # from mole/m3/s to kg/m2/s
         var = var*dh*28.01/1000.0
-
+        # add terp+meth
+        var[-1,:,:] = var_bio + var[-1,:,:]
         # write to a ncfile
         ext_data = Dataset(ext_files_folder.as_posix() + "/" +
                            fname, "w", format="NETCDF4")

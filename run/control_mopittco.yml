@@ -1,8 +1,8 @@
 # set your python executable path
-python_bin: '/home/asouri/anaconda3/bin/python3.9'
+python_bin: '/discover/nobackup/asouri/miniconda3/bin/python3'
 
 # to run the job on debug queue
-debug: False
+debug: True
 
 # number of jobs
 num_job: 36
@@ -11,7 +11,7 @@ num_job: 36
 ctm_name: 'ECCOH'
 
 # set the path of CTM netcdf files (either relative or absolute)
-ctm_dir: 'download_bucket/gmi/'
+ctm_dir: '/discover/nobackup/sstrode/Qchem/QUICKCHEM_July/qOHreplay2/eccoh_Nv/'
 
 # the frequency of CTM files (3-hourly, monthly)
 ctm_freq: 'monthly'
@@ -35,11 +35,11 @@ read_AK: True
 troposphere_only: False
 
 # set the path of L2 files
-sat_dir: 'download_bucket/omi_o3'
+sat_dir: '../oisatgmi/download_bucket/mopitt_CO/'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2019-05'
-end_date:   '2019-06'
+start_date: '2005-01'
+end_date:   '2005-12'
 
 # output folder for PDF reports
 output_pdf_dir: './report_CO'
