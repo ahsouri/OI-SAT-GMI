@@ -201,6 +201,16 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
             tri, sat_data.aprior_column*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
             ctm_models_coordinate, grid_size, threshold_ctm)
 
+        print('....................... surface pressure')
+        _, _, surface_pressure, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+            tri, sat_data.surface_pressure*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+            ctm_models_coordinate, grid_size, threshold_ctm)
+        
+        print('....................... apriori surface')
+        _, _, apriori_surface, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+            tri, sat_data.apriori_surface*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+            ctm_models_coordinate, grid_size, threshold_ctm)
+
         averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                                       np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
@@ -228,7 +238,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
     if isinstance(sat_data, satellite_opt):
         interpolated_sat = satellite_opt(vcd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
-        ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], aprior_col, apriori_profile)
+        ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], aprior_col, apriori_profile, surface_pressure, apriori_surface)
     elif isinstance(sat_data, satellite_amf):
         interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
         ], [], uncertainty, [], pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], [], [])

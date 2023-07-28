@@ -169,12 +169,12 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
         time = [datetime.datetime(timebegin_date[0], timebegin_date[1], timebegin_date[2])]
         # read pressure information
         delta_p = _read_nc(fname, 'DELP').astype('float32')/100.0
-        delta_p = np.flip(delta_p, axis=1)  # from bottom to top
+        delta_p = np.flip(delta_p, axis=0)  # from bottom to top
         pressure_mid = _read_nc(fname, 'PL').astype('float32')/100.0
-        pressure_mid = np.flip(pressure_mid, axis=1)  # from bottom to top
+        pressure_mid = np.flip(pressure_mid, axis=0)  # from bottom to top
         # read gas concentration
         temp = np.flip(_read_nc(
-            fname, gasname), axis=1)*1e9  # ppbv
+            fname, gasname), axis=0)*1e9  # ppbv
         # the purpose of this part is to reduce memory usage
         gas_profile = temp.astype('float32')
         temp = []
@@ -662,6 +662,11 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
     apriori_profile = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
                                              'Data Fields'], 'APrioriCOMixingRatioProfileDay').transpose((2, 0, 1))
     apriori_profile[apriori_profile <= 0] = np.nan
+    apriori_surface = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                             'Data Fields'], 'APrioriCOSurfaceMixingRatioDay')
+    surface_pressure = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                             'Data Fields'], 'SurfacePressureDay')
+    apriori_surface[apriori_surface <= 0] = np.nan
     apriori_col = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
                                          'Data Fields'], 'APrioriCOTotalColumnDay')
     apriori_col = (apriori_col*1e-15).astype('float16')
@@ -681,7 +686,6 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
         AKs = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
                                      'Data Fields'], 'TotalColumnAveragingKernelDay')*1e-15
         AKs = AKs.transpose((2, 0, 1)).astype('float16')
-        AKs = AKs[1::, :, :]
     else:
         AKs = np.empty((1))
     for z in range(0, 9):
@@ -689,7 +693,7 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
 
     # populate mopitt class
     mopitt = satellite_opt(vcd, time, [], tropopause, latitude_center,
-                           longitude_center, [], [], uncertainty, np.ones_like(vcd), p_mid, AKs, [], [], [], apriori_col, apriori_profile)
+                           longitude_center, [], [], uncertainty, np.ones_like(vcd), p_mid, AKs, [], [], [], apriori_col, apriori_profile, surface_pressure, apriori_surface)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')

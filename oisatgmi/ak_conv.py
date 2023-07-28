@@ -106,17 +106,21 @@ def ak_conv(ctm_data: list, sat_data: list):
                     continue
                 ctm_profile_tmp = ctm_profile[:, i, j].squeeze()
                 ctm_mid_pressure_tmp = ctm_mid_pressure[:, i, j].squeeze()
+                ctm_partial_tmp = ctm_partial_column[:, i, j].squeeze()
                 # interpolate the prior profiles
                 f = interpolate.interp1d(
                     np.log(ctm_mid_pressure_tmp),
                     ctm_profile_tmp, fill_value=np.nan, bounds_error=False)
                 interpolated_ctm_profile = f(
                     np.log(L2_granule.pressure_mid[:, i, j].squeeze()))
+                interpolated_ctm_at_surface = f(
+                    np.log(L2_granule.surface_pressure[i, j]))
                 # after applying AKs
-                L2_granule.averaging_kernels[0, i, j] = np.nan
                 model_VCD_after[i, j] = L2_granule.aprior_column[i, j] +\
                     np.nansum(L2_granule.averaging_kernels[:, i, j].squeeze(
                     )*(np.log10(interpolated_ctm_profile)-np.log10(L2_granule.apriori_profile[:, i, j].squeeze())))
+                #    L2_granule.averaging_kernels[0, i, j].squeeze(
+                #    )*(np.log10(interpolated_ctm_at_surface)-np.log10(L2_granule.apriori_surface[i, j]))       
                 #model_VCD_after[i,j] = np.nansum(ctm_partial_tmp)
 
         # updating the ctm data
