@@ -113,15 +113,13 @@ def ak_conv(ctm_data: list, sat_data: list):
                     ctm_profile_tmp, fill_value=np.nan, bounds_error=False)
                 interpolated_ctm_profile = f(
                     np.log(L2_granule.pressure_mid[:, i, j].squeeze()))
-                interpolated_ctm_at_surface = f(
-                    np.log(L2_granule.surface_pressure[i, j]))
                 # after applying AKs
                 model_VCD_after[i, j] = L2_granule.aprior_column[i, j] +\
-                    np.nansum(L2_granule.averaging_kernels[:, i, j].squeeze(
+                    np.nansum(L2_granule.averaging_kernels[1::, i, j].squeeze(
                     )*(np.log10(interpolated_ctm_profile)-np.log10(L2_granule.apriori_profile[:, i, j].squeeze())))
-                #    L2_granule.averaging_kernels[0, i, j].squeeze(
-                #    )*(np.log10(interpolated_ctm_at_surface)-np.log10(L2_granule.apriori_surface[i, j]))       
-                #model_VCD_after[i,j] = np.nansum(ctm_partial_tmp)
+                surface_component = L2_granule.averaging_kernels[0, i, j].squeeze(
+                    )*(np.log10(ctm_profile_tmp[0])-np.log10(L2_granule.apriori_surface[i, j]))
+                model_VCD_after[i, j] = model_VCD_after[i, j] + surface_component
 
         # updating the ctm data
         model_VCD_after[np.isnan(L2_granule.vcd)] = np.nan

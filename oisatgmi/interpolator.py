@@ -211,9 +211,9 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
             tri, sat_data.apriori_surface*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
             ctm_models_coordinate, grid_size, threshold_ctm)
 
-        averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+        averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0]+1, np.shape(upscaled_X)[0],
                                       np.shape(upscaled_X)[1]))
-        for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+        for z in range(0, np.shape(sat_data.pressure_mid)[0]+1):
             print('....................... AKs [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
             _, _, averaging_kernels[z, :, :], _ = _upscaler(lons_grid, lats_grid,
