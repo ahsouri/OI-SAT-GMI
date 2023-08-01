@@ -48,7 +48,7 @@ class oisatgmi(object):
                 startdate [str]: starting date in YYYY-mm-dd format string
                 enddate [str]: ending date in YYYY-mm-dd format string  
         '''
-        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.new_amf, self.old_amf = averaging(
+        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.aux1, self.aux2 = averaging(
             startdate, enddate, self.reader_obj)
         if gasname == 'O3':
             self.ctm_averaged_vcd = self.ctm_averaged_vcd/(2.69e16*1e-15)
@@ -72,7 +72,7 @@ class oisatgmi(object):
             lon = self.reader_obj.ctm_data[0].longitude
 
         report(lon, lat, self.ctm_averaged_vcd, self.ctm_averaged_vcd_corrected,
-               self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.new_amf, self.old_amf, fname, folder, gasname)
+               self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.aux1, self.aux2, fname, folder, gasname)
 
     def write_to_nc(self, output_file, output_folder='diag'):
         ''' 
@@ -130,12 +130,12 @@ class oisatgmi(object):
         data9[:, :] = self.reader_obj.sat_data[0].latitude_center
 
         data10 = ncfile.createVariable(
-            'old_amf', dtype('float32').char, ('x', 'y'))
-        data10[:, :] = self.old_amf
+            'aux1', dtype('float32').char, ('x', 'y'))
+        data10[:, :] = self.aux1
 
         data11 = ncfile.createVariable(
-            'new_amf', dtype('float32').char, ('x', 'y'))
-        data11[:, :] = self.new_amf
+            'aux2', dtype('float32').char, ('x', 'y'))
+        data11[:, :] = self.aux2
 
         ncfile.close()
 
@@ -144,12 +144,12 @@ class oisatgmi(object):
 if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
-    oisatgmi_obj.read_data('ECCOH', Path('/home/asouri/git_repos/mule/eccoh_sample'), 'CO', 'monthly', 'MOPITT',
-                           Path('download_bucket/mopitt_CO/'), '200503',
-                           averaged=True, read_ak=True, trop=False, num_job=1)
-    # oisatgmi_obj.recal_amf()
-    oisatgmi_obj.conv_ak()
-    oisatgmi_obj.average('2005-03-01', '2005-04-01')
+    oisatgmi_obj.read_data('FREE', Path('/home/asouri/git_repos/mule/eccoh_sample'), 'NO2', 'monthly', 'OMI_NO2',
+                           Path('download_bucket/omi_no2/'), '201803',
+                           averaged=True, read_ak=False, trop=True, num_job=1)
+    oisatgmi_obj.recal_amf()
+    #oisatgmi_obj.conv_ak()
+    oisatgmi_obj.average('2018-03-01', '2018-04-01')
     oisatgmi_obj.oi(error_ctm=10.0)
-    oisatgmi_obj.reporting('CO_200503_new', 'CO', folder='report')
-    oisatgmi_obj.write_to_nc('CO_200503_new', 'diag')
+    #oisatgmi_obj.reporting('NO2_200503_new', 'NO2', folder='report')
+    oisatgmi_obj.write_to_nc('NO2_200503_new', 'diag')

@@ -40,11 +40,13 @@ class satellite_opt:
     averaging_kernels: np.ndarray
     ctm_upscaled_needed: bool
     ctm_vcd: np.ndarray
+    ctm_xcol: np.ndarray
     ctm_time_at_sat: datetime.datetime
     aprior_column: np.ndarray
     apriori_profile: np.ndarray
     surface_pressure: np.ndarray
     apriori_surface: np.ndarray
+    x_col: np.ndarray
 
 @dataclass
 class ctm_model:

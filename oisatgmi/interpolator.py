@@ -53,7 +53,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
     size_grid_model_lon = np.abs(ctm_longitude[0, 0]-ctm_longitude[0, 1])
     size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
 
-    if (size_grid_model_lon > grid_size) and (size_grid_model_lat > grid_size):
+    if (size_grid_model_lon >= grid_size) and (size_grid_model_lat >= grid_size):
         # upscaling is needed
         size_kernel_x = np.floor(size_grid_model_lon/grid_size)
         size_kernel_y = np.floor(size_grid_model_lat/grid_size)
@@ -140,7 +140,6 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     grid[1, :, :] = lats_grid
     xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
     dists, _ = tree.query(xi)
-
     # if RBF is chosen
     if interpolator_type == 3:
         tri = points
@@ -192,23 +191,32 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
                                                             ctm_models_coordinate, grid_size, threshold_ctm)
         else:
             scattering_weights = np.empty((1))
+            pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                     np.shape(upscaled_X)[1]))
 
     # interpolate 3Ds fields for optimal estimation algorithms (averaging kernels; e.g., MOPITT)
     if isinstance(sat_data, satellite_opt):
         # because this is exclusively for MOPITT and GOSAT, we can also interpolate the prior column (or profile) here:
-        print('....................... apriori column')
-        _, _, aprior_col, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
-            tri, sat_data.aprior_column*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-            ctm_models_coordinate, grid_size, threshold_ctm)
-
-        print('....................... surface pressure')
-        _, _, surface_pressure, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
-            tri, sat_data.surface_pressure*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-            ctm_models_coordinate, grid_size, threshold_ctm)
+        if sat_data.aprior_column:
+            print('....................... apriori column')
+            _, _, aprior_col, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+                tri, sat_data.aprior_column*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+                ctm_models_coordinate, grid_size, threshold_ctm)
+        if sat_data.surface_pressure:
+            print('....................... surface pressure')
+            _, _, surface_pressure, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+                tri, sat_data.surface_pressure*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+                ctm_models_coordinate, grid_size, threshold_ctm)
         
-        print('....................... apriori surface')
-        _, _, apriori_surface, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
-            tri, sat_data.apriori_surface*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+        if sat_data.apriori_surface:
+            print('....................... apriori surface')
+            _, _, apriori_surface, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+                tri, sat_data.apriori_surface*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+                ctm_models_coordinate, grid_size, threshold_ctm)
+        
+        print('....................... Xcol')
+        _, _, x_col, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+            tri, sat_data.x_col*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
             ctm_models_coordinate, grid_size, threshold_ctm)
 
         averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0]+1, np.shape(upscaled_X)[0],
@@ -238,7 +246,8 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
     if isinstance(sat_data, satellite_opt):
         interpolated_sat = satellite_opt(vcd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
-        ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], aprior_col, apriori_profile, surface_pressure, apriori_surface)
+        ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], [], 
+        aprior_col, apriori_profile, surface_pressure, apriori_surface, x_col)
     elif isinstance(sat_data, satellite_amf):
         interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
         ], [], uncertainty, [], pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], [], [])

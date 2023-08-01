@@ -50,6 +50,8 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
         cbar.set_label('$ [DU] $', fontsize=18)
     elif unit == 4:
         cbar.set_label(r'$[ \times 10^{18}molec.cm^{-2}] $', fontsize=18)
+    elif unit == 5:
+        cbar.set_label(r'$[ppmv] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
@@ -113,7 +115,7 @@ def topdf(fname: str, folder: str, pdf_output: str):
 
 def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd_after: np.ndarray,
            sat_vcd: np.ndarray, sat_err: np.ndarray, increment: np.ndarray, averaging_kernel: np.ndarray, error_OI: np.ndarray,
-           new_amf: np.ndarray, old_amf: np.ndarray, fname: str, ffolder: str, gasname: str):
+           aux1: np.ndarray, aux2: np.ndarray, fname: str, ffolder: str, gasname: str):
     '''
     '''
     if not os.path.exists('temp'):
@@ -125,6 +127,7 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmin_incre = -5.0
         vmax_incre = 5.0
         unit = 1
+        aux = 'AMF'
     if gasname == 'NO2':
         vmin_vcd = 0.0
         vmax_vcd = 10.0
@@ -132,6 +135,7 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmin_incre = -5.0
         vmax_incre = 5.0
         unit = 1
+        aux = 'AMF'
     if gasname == 'O3':
         vmin_vcd = 200.0
         vmax_vcd = 500.0
@@ -146,6 +150,7 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmin_incre = -2.0
         vmax_incre = 2.0
         unit = 4
+        aux = 'xcol'
         # scaling to match 1x10^18
         ctm_vcd_before = ctm_vcd_before*1e-3
         ctm_vcd_after = ctm_vcd_after*1e-3
@@ -153,6 +158,9 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         sat_err = sat_err*1e-3
         increment = increment*1e-3
         error_OI = error_OI*1e-3
+        unit_aux = 5
+        vmin_aux = 0
+        vmax_aux = 0.15
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +
@@ -167,9 +175,16 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
             fname + '.png', 'Averaging Kernels', 2, 0.0, 1.0)
     plotter(lon, lat, error_OI, 'temp/error_' +
             fname + '.png', 'OI estimate error', unit, 0.0, vmax_error)
-    plotter(lon, lat, new_amf, 'temp/new_amf_' +
+    if aux == "AMF":
+        plotter(lon, lat, aux1, 'temp/aux1_' +
             fname + '.png', 'new AMF', 2, 0.0, 4)
-    plotter(lon, lat, old_amf, 'temp/old_amf_' +
+        plotter(lon, lat, aux2, 'temp/aux2_' +
             fname + '.png', 'old AMF', 2, 0.0, 4)
+    if aux == "xcol":
+        print('hi')
+        plotter(lon, lat, aux1, 'temp/aux1_' +
+            fname + '.png', 'XCO (SAT)', unit_aux, vmin_aux, vmax_aux)
+        plotter(lon, lat, aux2, 'temp/aux2_' +
+            fname + '.png', 'XCO (CTM-Prior)', unit_aux, vmin_aux, vmax_aux)
 
     topdf(fname, ffolder, 'OI_report_' + fname + '.pdf')

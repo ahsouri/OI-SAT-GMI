@@ -8,6 +8,7 @@ from oisatgmi.config import satellite_amf, satellite_opt, ctm_model
 from oisatgmi.interpolator import interpolator
 import warnings
 from scipy.io import savemat
+import yaml
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -33,6 +34,7 @@ def _get_nc_attr(filename, var):
 
 
 def _get_nc_attr_group_mopitt(fname):
+    # getting attributes for mopitt
     nc_f = fname
     nc_fid = Dataset(nc_f, 'r')
     attr = {}
@@ -139,12 +141,14 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
             tavg3_3d_met_files[k], tavg3_3d_gas_files[k], gas_to_be_saved) for k in range(len(tavg3_3d_met_files)))
         return outputs
 
+
 def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1) -> ctm_model:
     '''
        ECCOH reader
        Inputs:
              product_dir [str]: the folder containing the monthly ECCOH data
              YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
+             gases_to_be_saved [list]: name of gases to be loaded. e.g., ['NO2']
              num_obj [int]: number of jobs for parallel computation
        Output:
              eccoh_fields [ctm_model]: a dataclass format (see config.py)
@@ -166,7 +170,8 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
         timebegin_date = [int(timebegin_date[0:4]), int(
             timebegin_date[4:6]), int(timebegin_date[6:8])]
 
-        time = [datetime.datetime(timebegin_date[0], timebegin_date[1], timebegin_date[2])]
+        time = [datetime.datetime(
+            timebegin_date[0], timebegin_date[1], timebegin_date[2])]
         # read pressure information
         delta_p = _read_nc(fname, 'DELP').astype('float32')/100.0
         delta_p = np.flip(delta_p, axis=0)  # from bottom to top
@@ -180,15 +185,16 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
         temp = []
         # shape up the ctm class
         eccoh_data = ctm_model(latitude, longitude, time, gas_profile,
-                             pressure_mid, [], delta_p, ctmtype, False)
+                               pressure_mid, [], delta_p, ctmtype, False)
         return eccoh_data
 
     eccoh_files = sorted(
-            glob.glob(product_dir + "/*eccoh_Nv." + str(YYYYMM) + "*.nc4"))
+        glob.glob(product_dir + "/*eccoh_Nv." + str(YYYYMM) + "*.nc4"))
     # define gas profiles to be saved
     outputs = Parallel(n_jobs=num_job)(delayed(eccoh_reader_wrapper)(
-            eccoh_files[k], gas_to_be_saved) for k in range(len(eccoh_files)))
+        eccoh_files[k], gas_to_be_saved) for k in range(len(eccoh_files)))
     return outputs
+
 
 def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
@@ -262,7 +268,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.15  # degree
+        grid_size = 0.10  # degree
         tropomi_hcho = interpolator(
             1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
     # return
@@ -363,7 +369,7 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.15  # degree
+        grid_size = 0.10  # degree
         tropomi_no2 = interpolator(
             1, grid_size, tropomi_no2, ctm_models_coordinate, flag_thresh=0.75)
     # return
@@ -659,13 +665,16 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
                                  'Data Fields'], 'RetrievedCOTotalColumnDay')
     vcd[np.where((vcd <= 0) | (np.isinf(vcd)))] = np.nan
     vcd = (vcd*1e-15).astype('float16')
+    dryair_col = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
+                                        'Data Fields'], 'DryAirColumnDay')
+    x_col = (1e6*vcd/(dryair_col*1e-15)).astype('float32')
     apriori_profile = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
                                              'Data Fields'], 'APrioriCOMixingRatioProfileDay').transpose((2, 0, 1))
     apriori_profile[apriori_profile <= 0] = np.nan
     apriori_surface = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
                                              'Data Fields'], 'APrioriCOSurfaceMixingRatioDay')
     surface_pressure = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
-                                             'Data Fields'], 'SurfacePressureDay')
+                                              'Data Fields'], 'SurfacePressureDay')
     apriori_surface[apriori_surface <= 0] = np.nan
     apriori_col = _read_group_nc(fname, ['HDFEOS', 'GRIDS', 'MOP03',
                                          'Data Fields'], 'APrioriCOTotalColumnDay')
@@ -693,11 +702,68 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
 
     # populate mopitt class
     mopitt = satellite_opt(vcd, time, [], tropopause, latitude_center,
-                           longitude_center, [], [], uncertainty, np.ones_like(vcd), p_mid, AKs, [], [], [], apriori_col, apriori_profile, surface_pressure, apriori_surface)
+                           longitude_center, [], [], uncertainty, np.ones_like(
+                               vcd), p_mid, AKs, [], [], [], [],
+                           apriori_col, apriori_profile, surface_pressure, apriori_surface, x_col)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
         grid_size = 1.0  # degree
+        mopitt = interpolator(
+            1, grid_size, mopitt, ctm_models_coordinate, flag_thresh=0.0)
+    # return
+    return mopitt
+
+
+def gosat_reader_xch4(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_opt:
+    '''
+       MOPITT CO L3 reader
+       Inputs:
+             fname [str]: the name path of the L2 file
+             ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal 
+       Output:
+             mopitt_co [satellite_opt]: a dataclass format (see config.py)
+    '''
+    # say which file is being read
+    print("Currently reading: " + fname.split('/')[-1])
+    time = _read_nc(fname, 'time')
+    time = np.squeeze(np.nanmean(time))
+    time = datetime.datetime(
+        1970, 1, 1) + datetime.timedelta(seconds=int(time))
+    # read lat/lon at centers
+    latitude_center = _read_nc(
+        fname, 'latitude').astype('float32')
+    longitude_center = _read_nc(
+        fname, 'longitude').astype('float32')
+    # read xch4
+    xch4 = _read_nc(fname, 'xch4')
+    xch4[np.where((xch4 <= 0) | (np.isinf(xch4)))] = np.nan
+
+    apriori_profile = _read_nc(fname, 'ch4_profile_apriori').transpose()
+    apriori_profile[apriori_profile <= 0] = np.nan
+    # read quality flag
+    quality_flag = _read_nc(fname, 'xch4_quality_flag')
+    uncertainty = _read_nc(fname, 'xch4_uncertainty')
+    # no need to read tropopause for total CO
+    tropopause = np.empty((1))
+    # read pressures for AKs
+    p_mid = _read_nc(fname, 'pressure_levels')
+    if read_ak == True:
+        AKs = _read_nc(fname, 'xch4_averaging_kernel') * \
+            _read_nc(fname, 'pressure_weight')
+
+        AKs = AKs.transpose()
+    else:
+        AKs = np.empty((1))
+
+    # populate mopitt class
+    mopitt = satellite_opt(xch4, time, [], tropopause, latitude_center,
+                           longitude_center, [], [], uncertainty, 1-quality_flag, p_mid, AKs, [], [], [], [], [], apriori_profile, [], [], xch4)
+    # interpolation
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 0.5  # degree
         mopitt = interpolator(
             1, grid_size, mopitt, ctm_models_coordinate, flag_thresh=0.0)
     # return
@@ -786,6 +852,24 @@ def mopitt_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, re
     return outputs_sat
 
 
+def gosat_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, read_ak=True, num_job=1):
+    '''
+        reading mopitt data
+             product_dir [str]: the folder containing the tropomi data
+             ctm_models_coordinate [dict]: the ctm coordinates
+             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
+             num_job [int]: the number of jobs for parallel computation
+        Output [tropomi]: the mopitt @dataclass
+    '''
+    L2_files = sorted(glob.glob(product_dir + "/" + YYYYMM[0:4] + "/*" +
+                                YYYYMM[0:4] + YYYYMM[4::] + "*.nc"))
+    print(L2_files)
+    outputs_sat = Parallel(n_jobs=num_job)(delayed(gosat_reader_xch4)(
+        L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+    return outputs_sat
+
+
 class readers(object):
 
     def __init__(self) -> None:
@@ -803,6 +887,8 @@ class readers(object):
                                    OMI_NO2
                                    OMI_HCHO
                                    OMI_O3
+                                   MOPITT
+                                   GOSAT
                 product_dir  [Path]: a path object describing the path of L2 files
         '''
         self.satellite_product_dir = product_dir
@@ -846,6 +932,10 @@ class readers(object):
             self.sat_data = mopitt_reader(self.satellite_product_dir.as_posix(),
                                           ctm_models_coordinate,
                                           YYYYMM, read_ak=read_ak, num_job=num_job)
+        elif satellite == 'GOSAT':
+            self.sat_data = gosat_reader(self.satellite_product_dir.as_posix(),
+                                         ctm_models_coordinate,
+                                         YYYYMM, read_ak=read_ak, num_job=num_job)
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
@@ -892,19 +982,47 @@ class readers(object):
                 self.ctm_data = ctm_data
                 ctm_data = []
         if self.ctm_product == 'ECCOH':
-            self.ctm_data = ECCOH_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)
-            ctm_data = []
+            self.ctm_data = ECCOH_reader(
+                self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)
+        if self.ctm_product == 'FREE':
+            # Read the control file
+            with open('run/control_free.yml', 'r') as stream:
+                try:
+                    ctrl_opts = yaml.safe_load(stream)
+                except yaml.YAMLError as exc:
+                    raise Exception(exc)
+            ctm_type = 'FREE'
+            lat1 = ctrl_opts['latll']
+            lat2 = ctrl_opts['latur']
+            lon1 = ctrl_opts['lonll']
+            lon2 = ctrl_opts['lonur']
+            gridsize = ctrl_opts['gridsize']
+            lon_grid = np.arange(lon1, lon2+gridsize, gridsize)
+            lat_grid = np.arange(lat1, lat2+gridsize, gridsize)
+            lons_grid, lats_grid = np.meshgrid(lon_grid, lat_grid)
+            self.ctm_data = []
+            time = []
+            time.append(datetime.datetime(1989, 1, 16))  # my birthday
+            gas_profile = np.zeros(
+                (10, np.shape(lats_grid)[0], np.shape(lons_grid)[1]))*np.nan
+            delta_p = np.zeros(
+                (10, np.shape(lats_grid)[0], np.shape(lons_grid)[1]))*np.nan
+            pressure_mid = np.zeros(
+                (10, np.shape(lats_grid)[0], np.shape(lons_grid)[1]))*np.nan
+            self.ctm_data.append(ctm_model(lats_grid, lons_grid, time, gas_profile,
+                                           pressure_mid, [], delta_p, ctm_type, True))
+
 
 # testing
 if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data(
-        '200503', 'CO', frequency_opt='3-hourly', averaged=True)
+        '200905', 'CH4', frequency_opt='3-hourly', averaged=True)
     reader_obj.add_satellite_data(
-        'MOPITT', Path('download_bucket/mopitt_CO/'))
+        'GOSAT', Path('/media/asouri/Amir_5TB/NASA/GOSAT_XCH4/CH4_GOS_OCPR'))
     reader_obj.read_satellite_data(
-        '200503', read_ak=True, num_job=1)
+        '200905', read_ak=True, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center

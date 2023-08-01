@@ -63,13 +63,22 @@ def amf_recal(ctm_data: list, sat_data: list):
         Mair = 28.97e-3
         g = 9.80665
         N_A = 6.02214076e23
-        ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
-        )
-        ctm_profile = ctm_data[closest_index_day].gas_profile[closest_index_hour, :, :, :].squeeze(
-        )
-        ctm_deltap = ctm_data[closest_index_day].delta_p[closest_index_hour, :, :, :].squeeze(
-        )
-        ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
+        if ctm_data[0].ctmtype == "FREE":
+            ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[:, :, :].squeeze(
+            )
+            ctm_profile = ctm_data[closest_index_day].gas_profile[:, :, :].squeeze(
+            )
+            ctm_deltap = ctm_data[closest_index_day].delta_p[:, :, :].squeeze(
+            )
+            ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
+        else:
+            ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[closest_index_hour, :, :, :].squeeze(
+            )
+            ctm_profile = ctm_data[closest_index_day].gas_profile[closest_index_hour, :, :, :].squeeze(
+            )
+            ctm_deltap = ctm_data[closest_index_day].delta_p[closest_index_hour, :, :, :].squeeze(
+            )
+            ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
         # see if we need to upscale the ctm fields
         if L2_granule.ctm_upscaled_needed == True:
             ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
@@ -80,11 +89,25 @@ def amf_recal(ctm_data: list, sat_data: list):
             sat_coordinate = {}
             sat_coordinate["Longitude"] = L2_granule.longitude_center
             sat_coordinate["Latitude"] = L2_granule.latitude_center
+            size_grid_sat_lon = np.abs(
+                sat_coordinate["Longitude"][0, 0]-sat_coordinate["Longitude"][0, 1])
+            size_grid_sat_lat = np.abs(
+                sat_coordinate["Latitude"][0, 0] - sat_coordinate["Latitude"][1, 0])
+            threshold_sat = np.sqrt(
+                size_grid_sat_lon**2 + size_grid_sat_lat**2)
+            ctm_longitude = ctm_data[0].longitude
+            ctm_latitude = ctm_data[0].latitude
+            size_grid_model_lon = np.abs(
+                ctm_longitude[0, 0]-ctm_longitude[0, 1])
+            size_grid_model_lat = np.abs(
+                ctm_latitude[0, 0] - ctm_latitude[1, 0])
+            gridsize_ctm = np.sqrt(size_grid_model_lon **
+                                   2 + size_grid_model_lat**2)
             for z in range(0, np.shape(ctm_mid_pressure)[0]):
                 _, _, ctm_mid_pressure_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
-                                                                   ctm_mid_pressure[z, :, :], sat_coordinate, 0.6, 0.8, tri=tri)
+                                                                   ctm_mid_pressure[z, :, :], sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
                 _, _, ctm_partial_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
-                                                              ctm_deltap[z, :, :]*ctm_profile[z, :, :]/g/Mair*N_A*1e-4*1e-15*100.0*1e-9, sat_coordinate, 0.6, 0.8, tri=tri)
+                                                              ctm_deltap[z, :, :]*ctm_profile[z, :, :]/g/Mair*N_A*1e-4*1e-15*100.0*1e-9, sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
             ctm_mid_pressure = ctm_mid_pressure_new
             ctm_partial_column = ctm_partial_new
             ctm_partial_new = []
