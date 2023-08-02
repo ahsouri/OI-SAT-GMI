@@ -197,18 +197,18 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     # interpolate 3Ds fields for optimal estimation algorithms (averaging kernels; e.g., MOPITT)
     if isinstance(sat_data, satellite_opt):
         # because this is exclusively for MOPITT and GOSAT, we can also interpolate the prior column (or profile) here:
-        if sat_data.aprior_column:
+        if sat_data.aprior_column.any():
             print('....................... apriori column')
             _, _, aprior_col, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
                 tri, sat_data.aprior_column*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
                 ctm_models_coordinate, grid_size, threshold_ctm)
-        if sat_data.surface_pressure:
+        if sat_data.surface_pressure.any():
             print('....................... surface pressure')
             _, _, surface_pressure, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
                 tri, sat_data.surface_pressure*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
                 ctm_models_coordinate, grid_size, threshold_ctm)
         
-        if sat_data.apriori_surface:
+        if sat_data.apriori_surface.any():
             print('....................... apriori surface')
             _, _, apriori_surface, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
                 tri, sat_data.apriori_surface*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
