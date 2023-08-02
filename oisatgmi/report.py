@@ -17,23 +17,23 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
     pc = ccrs.PlateCarree()
     fig = plt.figure(figsize=(16, 8))
     ax = plt.axes(projection=pc)
-    ax.set_extent([-180, 180,
-                   -90, 90], crs=pc)
+    ax.set_extent([np.min(X.flatten()), np.max(X.flatten()),
+                   np.min(Y.flatten()), np.max(Y.flatten())], crs=pc)
     im = ax.imshow(Z, origin='lower',
-                   extent=[-180, 180,
-                           -90, 90],
+                   extent=[np.min(X.flatten()), np.max(X.flatten()),
+                   np.min(Y.flatten()), np.max(Y.flatten())],
                    interpolation='nearest', aspect='auto', vmin=vmin, vmax=vmax,
                    cmap=mpl.colormaps['rainbow'], transform=pc)
     ax.coastlines(resolution='50m', color='black', linewidth=4)
     # fixing tickers
-    x_ticks = np.arange(-180,
-                        180, 40)
-    x_labels = np.linspace(-180, 80, np.size(x_ticks))
+    x_ticks = np.arange(np.min(X.flatten()),
+                        np.max(X.flatten()), 40)
+    x_labels = np.linspace(np.min(X.flatten()), np.max(X.flatten()), np.size(x_ticks))
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(x_labels, fontsize=18)
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-    y_ticks = np.arange(-90, 90, 20)
-    y_labels = np.linspace(-90, 90, np.size(y_ticks))
+    y_ticks = np.arange(np.min(Y.flatten()), np.max(Y.flatten()), 20)
+    y_labels = np.linspace(np.min(Y.flatten()), np.max(Y.flatten()), np.size(y_ticks))
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(y_labels, fontsize=18)
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))

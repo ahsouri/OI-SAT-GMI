@@ -23,7 +23,6 @@ class satellite_amf:
     old_amf: np.ndarray
     new_amf: np.ndarray
 
-
 @dataclass
 class satellite_opt:
     vcd: np.ndarray

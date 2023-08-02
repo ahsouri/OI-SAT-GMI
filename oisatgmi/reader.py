@@ -986,7 +986,7 @@ class readers(object):
                 self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)
         if self.ctm_product == 'FREE':
             # Read the control file
-            with open('run/control_free.yml', 'r') as stream:
+            with open('control_free.yml', 'r') as stream:
                 try:
                     ctrl_opts = yaml.safe_load(stream)
                 except yaml.YAMLError as exc:

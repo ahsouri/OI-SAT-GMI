@@ -151,5 +151,5 @@ if __name__ == "__main__":
     #oisatgmi_obj.conv_ak()
     oisatgmi_obj.average('2018-03-01', '2018-04-01')
     oisatgmi_obj.oi(error_ctm=10.0)
-    #oisatgmi_obj.reporting('NO2_200503_new', 'NO2', folder='report')
+    oisatgmi_obj.reporting('NO2_200503_new', 'NO2', folder='report')
     oisatgmi_obj.write_to_nc('NO2_200503_new', 'diag')
