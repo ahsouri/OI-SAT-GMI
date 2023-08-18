@@ -999,7 +999,7 @@ class readers(object):
             gridsize = ctrl_opts['gridsize']
             lon_grid = np.arange(lon1, lon2+gridsize, gridsize)
             lat_grid = np.arange(lat1, lat2+gridsize, gridsize)
-            lons_grid, lats_grid = np.meshgrid(lon_grid, lat_grid)
+            lons_grid, lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
             self.ctm_data = []
             time = []
             time.append(datetime.datetime(1989, 1, 16))  # my birthday

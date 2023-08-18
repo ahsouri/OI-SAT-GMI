@@ -53,10 +53,12 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
     size_grid_model_lon = np.abs(ctm_longitude[0, 0]-ctm_longitude[0, 1])
     size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
 
-    if (size_grid_model_lon >= grid_size) and (size_grid_model_lat >= grid_size):
+    if (size_grid_model_lon >= grid_size) or (size_grid_model_lat >= grid_size):
         # upscaling is needed
         size_kernel_x = np.floor(size_grid_model_lon/grid_size)
         size_kernel_y = np.floor(size_grid_model_lat/grid_size)
+        if size_kernel_x == 0 : size_kernel_x = 1
+        if size_kernel_y == 0 : size_kernel_y = 1
         kernel = _boxfilter(size_kernel_y, size_kernel_x)
         Z = signal.convolve2d(Z, kernel, boundary='symm', mode='same')
         # define the triangulation
@@ -129,10 +131,9 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     lon_ctm_min = np.min(ctm_models_coordinate['Longitude'].flatten())
     lon_ctm_max = np.max(ctm_models_coordinate['Longitude'].flatten())
 
-    dx = 0.0  # buffer
-    lon_grid = np.arange(lon_ctm_min-dx, lon_ctm_max+dx, grid_size)
-    lat_grid = np.arange(lat_ctm_min-dx, lat_ctm_max+dx, grid_size)
-    lons_grid, lats_grid = np.meshgrid(lon_grid, lat_grid)
+    lon_grid = np.arange(lon_ctm_min-dx, lon_ctm_max+grid_size, grid_size)
+    lat_grid = np.arange(lat_ctm_min-dx, lat_ctm_max+grid_size, grid_size)
+    lons_grid, lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
     # calculate distance to remove too-far estimates
     tree = cKDTree(points)
     grid = np.zeros((2, np.shape(lons_grid)[0], np.shape(lons_grid)[1]))
