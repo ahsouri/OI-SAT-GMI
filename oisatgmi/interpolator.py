@@ -131,8 +131,8 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     lon_ctm_min = np.min(ctm_models_coordinate['Longitude'].flatten())
     lon_ctm_max = np.max(ctm_models_coordinate['Longitude'].flatten())
 
-    lon_grid = np.arange(lon_ctm_min-dx, lon_ctm_max+grid_size, grid_size)
-    lat_grid = np.arange(lat_ctm_min-dx, lat_ctm_max+grid_size, grid_size)
+    lon_grid = np.arange(lon_ctm_min, lon_ctm_max+grid_size, grid_size)
+    lat_grid = np.arange(lat_ctm_min, lat_ctm_max+grid_size, grid_size)
     lons_grid, lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
     # calculate distance to remove too-far estimates
     tree = cKDTree(points)
