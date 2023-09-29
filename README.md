@@ -8,14 +8,7 @@ It is highly recommended contact the developer (ahsouri@gmail.com) before using 
 
 ## Installation
 
-To install, you first to install geos that is required for Cartopy using:
-
-```bash
-conda install -c conda-forge geos
-```
-
-Please don't waste your time by installing geos or Pygeos, they won't work.
-Afterward, you can install the package via:
+You can install the package via:
 
 ```bash
 python3.9 setup.py install
