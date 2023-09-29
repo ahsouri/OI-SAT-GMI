@@ -6,26 +6,24 @@ import numpy as np
 from fpdf import FPDF
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
 from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
+from mpl_toolkits.basemap import Basemap
 
 def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
 
-    pc = ccrs.PlateCarree()
     fig = plt.figure(figsize=(16, 8))
-    ax = plt.axes(projection=pc)
-    ax.set_extent([np.min(X.flatten()), np.max(X.flatten()),
-                   np.min(Y.flatten()), np.max(Y.flatten())], crs=pc)
+    ax = plt.axes()
+    map = Basemap(projection='cyl',llcrnrlat=np.min(Y.flatten()),urcrnrlat= np.max(Y.flatten()),\
+            llcrnrlon=np.min(X.flatten()),urcrnrlon= np.max(X.flatten()),resolution="i")
     im = ax.imshow(Z, origin='lower',
                    extent=[np.min(X.flatten()), np.max(X.flatten()),
                    np.min(Y.flatten()), np.max(Y.flatten())],
                    interpolation='nearest', aspect='auto', vmin=vmin, vmax=vmax,
-                   cmap=mpl.colormaps['rainbow'], transform=pc)
-    ax.coastlines(resolution='50m', color='black', linewidth=4)
-    # fixing tickers
+                   cmap=mpl.colormaps['rainbow'])
+    map.drawcoastlines()
+    map.drawcountries()
     x_ticks = np.arange(np.min(X.flatten()),
                         np.max(X.flatten()), 40)
     x_labels = np.linspace(np.min(X.flatten()), np.max(X.flatten()), np.size(x_ticks))
