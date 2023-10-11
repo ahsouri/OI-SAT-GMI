@@ -56,7 +56,7 @@ class downloader(object):
         self.datestart = datestart
         self.dateend = dateend
 
-    def download_tropomi_l2(self, product_tag: str, output_fld: Path, maxpage=30, username="s5pguest", password="s5pguest"):
+    def download_tropomi_l2(self, product_tag: str, output_fld: Path, maxpage=3000, username="s5pguest", password="s5pguest"):
         '''
             download the tropomi data
             Inputs:
@@ -79,7 +79,7 @@ class downloader(object):
         if product_tag == 'CO':
             product_name = "%5F%5FCO%5F%5F%5F%5F"
         # loop over the pages
-        for page in range(0, maxpage):
+        for page in range(29, maxpage):
             searcher = "https://s5phub.copernicus.eu/dhus/search?start="
             searcher += f"{0+page*100:01}" + "&rows=100&q=footprint:%22"
             searcher += "Intersects(POLYGON((" + f"{self.lonll:.4f}" + "%20"
@@ -118,13 +118,14 @@ class downloader(object):
 
                 # download the data
                 for fname in list_file:
-                    cmd = "wget -nH -nc --no-check-certificate --content-disposition --continue "
+                    cmd = "wget -nH -nc --wait=100 --random-wait --continue --content-disposition "
                     cmd += "--user s5pguest --password s5pguest "
                     cmd += _charconv2("https://s5phub.copernicus.eu/dhus/odata/v1/Products(" +
                                       _charconv1(fname) + ")/\$value")
                     cmd += " -P" + (output_fld.as_posix()) + "/"
                     if not os.path.exists(output_fld.as_posix()):
                         os.makedirs(output_fld.as_posix())
+                    sleep(25.0)
                     os.system(cmd)
 
     def download_omi_l2(self, product_tag: str, output_fld: Path, product_name=None, username=None, password=None):
@@ -320,9 +321,11 @@ class downloader(object):
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(29, 46, -121, -109, '2019-03-01', '2019-04-01')
-    dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
-    #dl_obj.download_omi_l2('HCHO', Path('download_bucket/omi_hcho/'))
+    dl_obj = downloader(19, 61, -136, -54, '2018-01-01', '2022-01-01')
+    #dl_obj = downloader(-90, 90, -180, 180, '2005-06-01', '2005-07-01')
+    #dl_obj.download_tropomi_l2('NO2', Path('download_bucket/trop_no2/'))
+    dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_no2/'))
+    #dl_obj.omi_hcho_cfa( Path('download_bucket/omi_hcho_PO3/'))
     #dl_obj.download_omi_l2('O3', Path('download_bucket/omi_o3/'))
     #dl_obj.download_mopitt_l2(Path('download_bucket/mopitt_CO/'))
     # dl_obj.merra2_gmi(Path('download_bucket/gmi/'))
