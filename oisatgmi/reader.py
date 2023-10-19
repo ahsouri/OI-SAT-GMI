@@ -217,11 +217,11 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     time = datetime.datetime(
         2010, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at corners
-    latitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'],
-                                     'latitude_bounds').astype('float16')
-    longitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA',
-                                              'GEOLOCATIONS'], 'longitude_bounds').astype('float16')
+    # read lat/lon at centers
+    latitude_center = _read_group_nc(
+        fname, ['PRODUCT'], 'latitude').astype('float32')
+    longitude_center = _read_group_nc(
+        fname, ['PRODUCT'], 'longitude').astype('float32')
     # read total amf
     amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                'formaldehyde_tropospheric_air_mass_factor')
@@ -263,8 +263,8 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     uncertainty = _read_group_nc(fname, 'PRODUCT',
                                  'formaldehyde_tropospheric_vertical_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
-    tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), [], [
-    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
+    tropomi_hcho = satellite_amf(vcd, scd, time, [], latitude_center, longitude_center,
+                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
