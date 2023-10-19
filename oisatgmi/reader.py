@@ -264,7 +264,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
                                  'formaldehyde_tropospheric_vertical_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
 
-    tropomi_hcho = satellite_amf(vcd, scd, time, [], latitude_center, longitude_center,
+    tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
                                 [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
