@@ -787,7 +787,7 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
     '''
 
     # find L2 files first
-    L2_files = sorted(glob.glob(product_dir + "/*" + str(YYYYMM) + "*.nc"))
+    L2_files = sorted(glob.glob(product_dir + "/S5P_*" + "_L2__HCHO___" + str(YYYYMM) + "*.nc"))
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_no2)(
