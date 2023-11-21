@@ -61,9 +61,9 @@ for year in range(np.min(list_years), np.max(list_years)+1):
         slurm_cmd += '#PBS -o oi_gmi.out  \n'
         slurm_cmd += '#PBS -e oi_gmi.err  \n'
         slurm_cmd += '#PBS -W group_list=s1395 \n'
-        slurm_cmd += 'cd $PBS_O_WORKDIR  \n'
         if debug_on:
             slurm_cmd += '#PBS -q devel  \n'
+        slurm_cmd += 'cd $PBS_O_WORKDIR  \n'
         slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month)
         file.writelines(slurm_cmd)
         file.close()
