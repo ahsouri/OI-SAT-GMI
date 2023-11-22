@@ -201,9 +201,9 @@ class downloader(object):
                     result.raise_for_status()
                     urls = result.text.split('\n')
                     for url in urls:
-                        cmd = "wget --content-disposition "
+                        cmd = "wget "
                         cmd += "--continue --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --auth-no-challenge=on "
-                        cmd += "--keep-session-cookies --timeout=600"
+                        cmd += "--keep-session-cookies --timeout=600 "
                         cmd += '"' + str(url)[:-1] + '"'
                         cmd += " -P " + (output_fld.as_posix())
                         if not os.path.exists(output_fld.as_posix()):

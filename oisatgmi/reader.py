@@ -9,6 +9,7 @@ from oisatgmi.interpolator import interpolator
 import warnings
 from scipy.io import savemat
 import yaml
+import os
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -63,6 +64,12 @@ def _read_group_nc(filename, group, var):
     nc_fid.close()
     return np.squeeze(out)
 
+def _remove_empty_files(filelist:list):
+    # remove empty files from a list
+    for file in filelist:
+        if os.path.getsize(file)<100:
+            filelist.remove(file)
+    return filelist
 
 def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_opt='3-hourly', num_job=1) -> ctm_model:
     '''
@@ -787,7 +794,8 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
     '''
 
     # find L2 files first
-    L2_files = sorted(glob.glob(product_dir + "/S5P_*" + "_L2__*__" + str(YYYYMM) + "*.nc"))
+    L2_files = sorted(glob.glob(product_dir + "/S5P_*" + "_L2__*___" + str(YYYYMM) + "*.nc"))
+    L2_files = _remove_empty_files(L2_files)
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_no2)(
@@ -823,6 +831,7 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
         print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5")
         L2_files = sorted(glob.glob(product_dir + "/*" +
                                     YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5"))
+    L2_files = _remove_empty_files(L2_files)
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_no2)(
@@ -848,6 +857,7 @@ def mopitt_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, re
     '''
     L3_files = sorted(glob.glob(product_dir + "/*" +
                                 YYYYMM[0:4] + YYYYMM[4::] + "*.he5"))
+    L3_files = _remove_empty_files(L3_files)
     outputs_sat = Parallel(n_jobs=num_job)(delayed(mopitt_reader_co)(
         L3_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L3_files)))
     return outputs_sat
