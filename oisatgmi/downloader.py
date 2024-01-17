@@ -160,7 +160,7 @@ class downloader(object):
         svcurl = 'https://disc.gsfc.nasa.gov/service/subset/jsonwsp'
         # the product target
         if product_tag == 'NO2':
-            product = 'S5P_L2__NO2____HiR'
+            product = 'S5P_L2__NO2____HiR_2'
         elif product_tag == 'HCHO':
             product = 'S5P_L2__HCHO___HiR_2'
         if (product_name is not None):
@@ -408,7 +408,7 @@ class downloader(object):
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(19, 61, -136, -54, '2019-05-01', '2019-10-01')
+    dl_obj = downloader(19, 61, -136, -54, '2019-05-01', '2019-05-01')
     #dl_obj = downloader(-90, 90, -180, 180, '2005-06-01', '2005-07-01')
     dl_obj.download_tropomi_l2('HCHO', Path('download_bucket/trop_hcho/'))
     #dl_obj.download_omi_l2('HCHO', Path('download_bucket/omi_no2/'))
