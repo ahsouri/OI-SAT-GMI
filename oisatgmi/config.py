@@ -46,6 +46,7 @@ class satellite_opt:
     surface_pressure: np.ndarray
     apriori_surface: np.ndarray
     x_col: np.ndarray
+    pressure_weight: np.ndarray
 
 @dataclass
 class ctm_model:

@@ -4,7 +4,8 @@ from oisatgmi.amf_recal import amf_recal
 from oisatgmi.averaging import averaging
 from oisatgmi.optimal_interpolation import OI
 from oisatgmi.report import report
-from oisatgmi.ak_conv import ak_conv
+from oisatgmi.ak_conv_mopitt import ak_conv_mopitt
+from oisatgmi.ak_conv_gosat import ak_conv_gosat
 import numpy as np
 from scipy.io import savemat
 from numpy import dtype
@@ -36,10 +37,13 @@ class oisatgmi(object):
         self.reader_obj.sat_data = amf_recal(
             self.reader_obj.ctm_data, self.reader_obj.sat_data)
 
-    def conv_ak(self):
-
-        self.reader_obj.sat_data = ak_conv(
-            self.reader_obj.ctm_data, self.reader_obj.sat_data)
+    def conv_ak(self,sensor:str):
+        if sensor == 'MOPITT':
+           self.reader_obj.sat_data = ak_conv_mopitt(
+               self.reader_obj.ctm_data, self.reader_obj.sat_data)
+        if sensor == 'GOSAT':
+           self.reader_obj.sat_data = ak_conv_gosat(
+               self.reader_obj.ctm_data, self.reader_obj.sat_data)            
 
     def average(self, startdate: str, enddate: str, gasname=None):
         '''
@@ -53,11 +57,14 @@ class oisatgmi(object):
         if gasname == 'O3':
             self.ctm_averaged_vcd = self.ctm_averaged_vcd/(2.69e16*1e-15)
 
-    def oi(self, error_ctm=50.0):
-
-        self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
-                                                                                           (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
-
+    def oi(self, sensor: str, error_ctm=50.0):
+        if sensor != 'GOSAT':
+            self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
+                        (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
+        else:
+            self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.aux2, self.aux1
+                        (self.aux2*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
+                
     def reporting(self, fname: str, gasname, folder='report'):
 
         # pick the right latitude and longitude

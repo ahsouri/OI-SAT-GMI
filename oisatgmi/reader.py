@@ -6,6 +6,7 @@ from joblib import Parallel, delayed
 from netCDF4 import Dataset
 from oisatgmi.config import satellite_amf, satellite_opt, ctm_model
 from oisatgmi.interpolator import interpolator
+from oisatgmi.filler_gosat import filler_gosatxch4
 import warnings
 from scipy.io import savemat
 import yaml
@@ -712,7 +713,7 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
     mopitt = satellite_opt(vcd, time, [], tropopause, latitude_center,
                            longitude_center, [], [], uncertainty, np.ones_like(
                                vcd), p_mid, AKs, [], [], [], [],
-                           apriori_col, apriori_profile, surface_pressure, apriori_surface, x_col)
+                           apriori_col, apriori_profile, surface_pressure, apriori_surface, x_col, [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -753,29 +754,36 @@ def gosat_reader_xch4(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
     # read quality flag
     quality_flag = _read_nc(fname, 'xch4_quality_flag')
     uncertainty = _read_nc(fname, 'xch4_uncertainty')
-    # no need to read tropopause for total CO
+    # no need to read tropopause 
     tropopause = np.empty((1))
     # read pressures for AKs
     p_mid = _read_nc(fname, 'pressure_levels')
+    p_mid[p_mid<=0] = np.nan
     if read_ak == True:
-        AKs = _read_nc(fname, 'xch4_averaging_kernel') * \
-            _read_nc(fname, 'pressure_weight')
-
+        AKs = _read_nc(fname, 'xch4_averaging_kernel')
         AKs = AKs.transpose()
+        PW  = _read_nc(fname, 'pressure_weight')
+        PW = PW.transpose()
+        AKs[AKs<=0] = np.nan
+        PW[PW<=0] = np.nan
     else:
         AKs = np.empty((1))
+        PW  = np.empty((1))
 
-    # populate mopitt class
-    mopitt = satellite_opt(xch4, time, [], tropopause, latitude_center,
-                           longitude_center, [], [], uncertainty, 1-quality_flag, p_mid, AKs, [], [], [], [], [], apriori_profile, [], [], xch4)
+    p_mid = np.transpose(p_mid)
+    # populate gosat class
+    gosat = satellite_opt(xch4, time, [], tropopause, latitude_center,
+                           longitude_center, [], [], uncertainty, 1-quality_flag, p_mid, AKs, [], [], [], [], [], apriori_profile, [], [], xch4, PW)
+    # since gosat does image the earth, we need to convert the points to gridded maps using filler_gosat.py
+    gosat = filler_gosatxch4(0.1, gosat, flag_thresh=0.0)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.5  # degree
-        mopitt = interpolator(
-            1, grid_size, mopitt, ctm_models_coordinate, flag_thresh=0.0)
+        grid_size = 0.25  # degree
+        gosat = interpolator(
+            1, grid_size, gosat, ctm_models_coordinate, flag_thresh=0.0)
     # return
-    return mopitt
+    return gosat
 
 
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
