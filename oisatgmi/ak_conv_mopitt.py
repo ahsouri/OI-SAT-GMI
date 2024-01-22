@@ -5,7 +5,7 @@ from scipy.spatial import Delaunay
 from scipy.io import savemat
 
 
-def ak_conv(ctm_data: list, sat_data: list):
+def ak_conv_mopitt(ctm_data: list, sat_data: list):
     print('Averaging Kernel Conv begins...')
     # list the time in ctm_data
     time_ctm = []

@@ -32,7 +32,9 @@ oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
                        Path(sat_dir), str(year) + f"{month:02}", averaged=ctm_avg, read_ak=read_AK,
                        trop=troposphere_only, num_job=int(num_job))
 if sensor == "MOPITT":
-   oisatgmi_obj.conv_ak()
+   oisatgmi_obj.conv_ak(sensor)
+elif sensor == "GOSAT":
+   oisatgmi_obj.conv_ak(sensor)
 else:
    oisatgmi_obj.recal_amf()
 if month != 12:
@@ -41,6 +43,6 @@ if month != 12:
 else:
     oisatgmi_obj.average(
         str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01', gasname=gas)
-oisatgmi_obj.oi(error_ctm=error_ctm)
+oisatgmi_obj.oi(sensor, error_ctm=error_ctm)
 oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}", gas, output_pdf_dir)
 oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}", output_nc_dir)

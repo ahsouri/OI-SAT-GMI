@@ -43,7 +43,7 @@ class oisatgmi(object):
                self.reader_obj.ctm_data, self.reader_obj.sat_data)
         if sensor == 'GOSAT':
            self.reader_obj.sat_data = ak_conv_gosat(
-               self.reader_obj.ctm_data, self.reader_obj.sat_data)            
+               self.reader_obj.ctm_data, self.reader_obj.sat_data)
 
     def average(self, startdate: str, enddate: str, gasname=None):
         '''
@@ -62,9 +62,8 @@ class oisatgmi(object):
             self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
                         (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
         else:
-            self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.aux2, self.aux1
+            self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.aux2, self.aux1,
                         (self.aux2*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
-                
     def reporting(self, fname: str, gasname, folder='report'):
 
         # pick the right latitude and longitude

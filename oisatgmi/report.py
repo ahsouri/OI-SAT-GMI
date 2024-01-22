@@ -159,6 +159,17 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         unit_aux = 5
         vmin_aux = 0
         vmax_aux = 0.15
+    if gasname == 'CH4':
+        vmin_vcd = 0.0
+        vmax_vcd = 2000.0
+        vmax_error = 20
+        vmin_incre = -2.0
+        vmax_incre = 2.0
+        unit = 4
+        aux = 'xcol'
+        unit_aux = 5
+        vmin_aux = 0
+        vmax_aux = 2000
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +

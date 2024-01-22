@@ -219,15 +219,34 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
         _, _, x_col, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
             tri, sat_data.x_col*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
             ctm_models_coordinate, grid_size, threshold_ctm)
-
-        averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0]+1, np.shape(upscaled_X)[0],
+        if sat_data.sensor =='MOPITT':
+           averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0]+1, np.shape(upscaled_X)[0],
                                       np.shape(upscaled_X)[1]))
-        for z in range(0, np.shape(sat_data.pressure_mid)[0]+1):
-            print('....................... AKs [' + str(z+1) +
-                  '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-            _, _, averaging_kernels[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+           for z in range(0, np.shape(sat_data.pressure_mid)[0]+1):
+               print('....................... AKs [' + str(z+1) +
+                     '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+               _, _, averaging_kernels[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                             _interpolosis(tri, sat_data.averaging_kernels[z, :, :].squeeze()
                                                                           * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+           pressure_weights = np.empty((1))
+        if sat_data.sensor =='GOSAT':
+           averaging_kernels = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                      np.shape(upscaled_X)[1]))
+           for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+               print('....................... AKs [' + str(z+1) +
+                  '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+               _, _, averaging_kernels[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+                                                            _interpolosis(tri, sat_data.averaging_kernels[z, :, :].squeeze()
+                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+           pressure_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
+                                    np.shape(upscaled_X)[1]))
+           for z in range(0, np.shape(sat_data.pressure_mid)[0]):
+               print('....................... Pressure Weights [' + str(z+1) +
+                  '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
+               _, _, pressure_weights[z, :, :], _ = _upscaler(lons_grid, lats_grid,
+                                                            _interpolosis(tri, sat_data.pressure_weight[z, :, :].squeeze()
+                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+
         pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(upscaled_X)[0],
                                  np.shape(upscaled_X)[1]))
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
@@ -247,8 +266,8 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
     if isinstance(sat_data, satellite_opt):
         interpolated_sat = satellite_opt(vcd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
-        ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], [], 
-        aprior_col, apriori_profile, surface_pressure, apriori_surface, x_col, [])
+        ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], [],
+        aprior_col, apriori_profile, surface_pressure, apriori_surface, x_col, pressure_weights, sat_data.sensor)
     elif isinstance(sat_data, satellite_amf):
         interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
         ], [], uncertainty, [], pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], [], [])

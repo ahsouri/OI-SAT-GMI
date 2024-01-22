@@ -131,6 +131,11 @@ def ak_conv_gosat(ctm_data: list, sat_data: list):
                 # after applying AKs
                 model_xcol_temp = L2_granule.apriori_profile[:,i,j].squeeze() +\
                       (interpolated_ctm_profile - L2_granule.apriori_profile[:,i,j].squeeze())*L2_granule.averaging_kernels[:,i,j].squeeze()
+                print(np.shape(model_xcol_temp))
+                print(np.shape(L2_granule.pressure_weight[:,i,j].squeeze()))
+                print(interpolated_ctm_profile)
+                print(L2_granule.pressure_weight[:,i,j].squeeze())
+                print(L2_granule.averaging_kernels[:,i,j].squeeze())
                 model_xcol_temp = model_xcol_temp*L2_granule.pressure_weight[:,i,j].squeeze()
                 model_xcol_temp[model_xcol_temp<=0] = np.nan
                 model_xcol[i,j] = np.nansum(model_xcol_temp) #ppbv

@@ -49,7 +49,8 @@ for year in range(np.min(list_years), np.max(list_years)+1):
         file = open('./jobs/' + 'job_' + str(year) +
                     '_' + str(month) + '.j', 'w')
         slurm_cmd = '#!/bin/bash \n'
-        slurm_cmd += '#SBATCH -J oi_gmi \n'
+        slurm_cmd += '#SBATCH -J oi_gmi  \n'
+        slurm_cmd += '#SBATCH --no-requeue  \n'
         slurm_cmd += '#SBATCH --account=s1043 \n'
         slurm_cmd += '#SBATCH --ntasks=1 \n'
         slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'

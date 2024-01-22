@@ -77,6 +77,7 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
 
     latitude_center = lats_grid
     longitude_center = lons_grid
+    print('Gridding GOSAT point data into 2D images...')
     # interpolate 2Ds fields
     print('....................... vcd')
     vcd =  _interpolosis(
@@ -130,5 +131,5 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
     if isinstance(sat_data, satellite_opt):
         interpolated_sat = satellite_opt(vcd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
         ], [], uncertainty, quality_flag, pressure_mid, averaging_kernels, [], [], [], [], 
-        [], apriori_profile, [], [], xch4, pressure_weights)
+        np.empty((1)), apriori_profile, np.empty((1)), np.empty((1)), xch4, pressure_weights, 'GOSAT')
     return interpolated_sat

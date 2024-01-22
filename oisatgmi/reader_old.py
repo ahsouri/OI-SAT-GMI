@@ -6,11 +6,9 @@ from joblib import Parallel, delayed
 from netCDF4 import Dataset
 from oisatgmi.config import satellite_amf, satellite_opt, ctm_model
 from oisatgmi.interpolator import interpolator
-from oisatgmi.filler_gosat import filler_gosatxch4
 import warnings
 from scipy.io import savemat
 import yaml
-import os
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -65,12 +63,6 @@ def _read_group_nc(filename, group, var):
     nc_fid.close()
     return np.squeeze(out)
 
-def _remove_empty_files(filelist:list):
-    # remove empty files from a list
-    for file in filelist:
-        if os.path.getsize(file)<100:
-            filelist.remove(file)
-    return filelist
 
 def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_opt='3-hourly', num_job=1) -> ctm_model:
     '''
@@ -225,11 +217,11 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     time = datetime.datetime(
         2010, 1, 1) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at centers
-    latitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'latitude').astype('float32')
-    longitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'longitude').astype('float32')
+    # read lat/lon at corners
+    latitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'GEOLOCATIONS'],
+                                     'latitude_bounds').astype('float16')
+    longitude_corner = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA',
+                                              'GEOLOCATIONS'], 'longitude_bounds').astype('float16')
     # read total amf
     amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                'formaldehyde_tropospheric_air_mass_factor')
@@ -268,12 +260,11 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
                  (SWs > 100.0) | (SWs < 0.0))] = 0.0
     # read the precision
-    uncertainty = _read_group_nc(fname, ['PRODUCT'],
+    uncertainty = _read_group_nc(fname, 'PRODUCT',
                                  'formaldehyde_tropospheric_vertical_column_precision')
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
-
-    tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
-                                [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
+    tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), [], [
+    ], latitude_corner, longitude_corner, uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -713,7 +704,7 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
     mopitt = satellite_opt(vcd, time, [], tropopause, latitude_center,
                            longitude_center, [], [], uncertainty, np.ones_like(
                                vcd), p_mid, AKs, [], [], [], [],
-                           apriori_col, apriori_profile, surface_pressure, apriori_surface, x_col, [], 'MOPITT')
+                           apriori_col, apriori_profile, surface_pressure, apriori_surface, x_col)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
@@ -726,7 +717,7 @@ def mopitt_reader_co(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
 
 def gosat_reader_xch4(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_opt:
     '''
-       GOSAT L2 reader
+       MOPITT CO L3 reader
        Inputs:
              fname [str]: the name path of the L2 file
              ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
@@ -754,36 +745,29 @@ def gosat_reader_xch4(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
     # read quality flag
     quality_flag = _read_nc(fname, 'xch4_quality_flag')
     uncertainty = _read_nc(fname, 'xch4_uncertainty')
-    # no need to read tropopause 
+    # no need to read tropopause for total CO
     tropopause = np.empty((1))
     # read pressures for AKs
     p_mid = _read_nc(fname, 'pressure_levels')
-    p_mid[p_mid<=0] = np.nan
     if read_ak == True:
-        AKs = _read_nc(fname, 'xch4_averaging_kernel')
+        AKs = _read_nc(fname, 'xch4_averaging_kernel') * \
+            _read_nc(fname, 'pressure_weight')
+
         AKs = AKs.transpose()
-        PW  = _read_nc(fname, 'pressure_weight')
-        PW = PW.transpose()
-        AKs[AKs<=0] = np.nan
-        PW[PW<=0] = np.nan
     else:
         AKs = np.empty((1))
-        PW  = np.empty((1))
 
-    p_mid = np.transpose(p_mid)
-    # populate gosat class
-    gosat = satellite_opt(xch4, time, [], tropopause, latitude_center,
-                           longitude_center, [], [], uncertainty, 1-quality_flag, p_mid, AKs, [], [], [], [], np.empty((1)), apriori_profile, np.empty((1)), np.empty((1)), xch4, PW, 'GOSAT')
-    # since gosat does image the earth, we need to convert the points to gridded maps using filler_gosat.py
-    gosat = filler_gosatxch4(0.1, gosat, flag_thresh=0.0)
+    # populate mopitt class
+    mopitt = satellite_opt(xch4, time, [], tropopause, latitude_center,
+                           longitude_center, [], [], uncertainty, 1-quality_flag, p_mid, AKs, [], [], [], [], [], apriori_profile, [], [], xch4)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.25  # degree
-        gosat = interpolator(
-            1, grid_size, gosat, ctm_models_coordinate, flag_thresh=0.0)
+        grid_size = 0.5  # degree
+        mopitt = interpolator(
+            1, grid_size, mopitt, ctm_models_coordinate, flag_thresh=0.0)
     # return
-    return gosat
+    return mopitt
 
 
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
@@ -802,8 +786,7 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
     '''
 
     # find L2 files first
-    L2_files = sorted(glob.glob(product_dir + "/S5P_*" + "_L2__*___" + str(YYYYMM) + "*.nc"))
-    L2_files = _remove_empty_files(L2_files)
+    L2_files = sorted(glob.glob(product_dir + "/*" + str(YYYYMM) + "*.nc"))
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(tropomi_reader_no2)(
@@ -839,7 +822,6 @@ def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordin
         print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5")
         L2_files = sorted(glob.glob(product_dir + "/*" +
                                     YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.he5"))
-    L2_files = _remove_empty_files(L2_files)
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
         outputs_sat = Parallel(n_jobs=num_job)(delayed(omi_reader_no2)(
@@ -865,7 +847,6 @@ def mopitt_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, re
     '''
     L3_files = sorted(glob.glob(product_dir + "/*" +
                                 YYYYMM[0:4] + YYYYMM[4::] + "*.he5"))
-    L3_files = _remove_empty_files(L3_files)
     outputs_sat = Parallel(n_jobs=num_job)(delayed(mopitt_reader_co)(
         L3_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L3_files)))
     return outputs_sat
@@ -883,6 +864,7 @@ def gosat_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, rea
     '''
     L2_files = sorted(glob.glob(product_dir + "/" + YYYYMM[0:4] + "/*" +
                                 YYYYMM[0:4] + YYYYMM[4::] + "*.nc"))
+    print(L2_files)
     outputs_sat = Parallel(n_jobs=num_job)(delayed(gosat_reader_xch4)(
         L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
