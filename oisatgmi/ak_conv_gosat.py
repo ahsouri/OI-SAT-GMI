@@ -115,38 +115,49 @@ def ak_conv_gosat(ctm_data: list, sat_data: list):
 
         model_VCD = np.zeros_like(L2_granule.vcd)*np.nan
         model_xcol = np.zeros_like(L2_granule.vcd)*np.nan
-        for i in range(0, np.shape(L2_granule.vcd)[0]):
-            for j in range(0, np.shape(L2_granule.vcd)[1]):
-                if np.isnan(L2_granule.vcd[i, j]):
+        for i in range(0, np.shape(L2_granule.x_col)[0]):
+            for j in range(0, np.shape(L2_granule.x_col)[1]):
+                if np.isnan(L2_granule.x_col[i, j]):
                     continue
                 ctm_profile_tmp = ctm_profile[:, i, j].squeeze()
                 ctm_mid_pressure_tmp = ctm_mid_pressure[:, i, j].squeeze()
                 ctm_air_partial_tmp = ctm_air_partial_column[:, i, j].squeeze()
                 # interpolate the prior profiles
                 f = interpolate.interp1d(
-                    np.log(ctm_mid_pressure_tmp),
-                    ctm_profile_tmp, fill_value=np.nan, bounds_error=False)
+                       np.log(ctm_mid_pressure_tmp),
+                       ctm_profile_tmp, fill_value='extrapolate')
                 interpolated_ctm_profile = f(
                     np.log(L2_granule.pressure_mid[:, i, j].squeeze()))
                 # after applying AKs
                 model_xcol_temp = L2_granule.apriori_profile[:,i,j].squeeze() +\
                       (interpolated_ctm_profile - L2_granule.apriori_profile[:,i,j].squeeze())*L2_granule.averaging_kernels[:,i,j].squeeze()
-                print(np.shape(model_xcol_temp))
-                print(np.shape(L2_granule.pressure_weight[:,i,j].squeeze()))
-                print(interpolated_ctm_profile)
-                print(L2_granule.pressure_weight[:,i,j].squeeze())
-                print(L2_granule.averaging_kernels[:,i,j].squeeze())
+                #print("CTM mid pressure")
+                #print(ctm_mid_pressure_tmp)
+                #print("CTM profile before interpolation")
+                #print(ctm_profile_tmp)
+                #print("GOSAT profile pressure")
+                #print(L2_granule.pressure_mid[:, i, j].squeeze())
+                #print("CTM at GOSAT level")
+                #print(interpolated_ctm_profile)
+                #print("AK")
+                #print(L2_granule.averaging_kernels[:, i, j].squeeze())
+                #print("Pressure weights")
+                #print(L2_granule.pressure_weight[:,i,j].squeeze())
+                #print(L2_granule.apriori_profile[:,i,j].squeeze())
                 model_xcol_temp = model_xcol_temp*L2_granule.pressure_weight[:,i,j].squeeze()
+                #print("xcol_model")
+                #print(model_xcol_temp)
                 model_xcol_temp[model_xcol_temp<=0] = np.nan
                 model_xcol[i,j] = np.nansum(model_xcol_temp) #ppbv
 
         # updating the ctm data
-        model_VCD[np.isnan(L2_granule.vcd)] = np.nan
-        model_VCD[np.isinf(L2_granule.vcd)] = np.nan
         sat_data[counter].ctm_vcd = model_VCD # this will be nan for gosat because we will deal with XCH4 only
+        model_xcol[np.isinf(L2_granule.x_col)] = np.nan
+        model_xcol[np.isnan(L2_granule.x_col)] = np.nan
         sat_data[counter].ctm_xcol = model_xcol
         sat_data[counter].ctm_time_at_sat = time_ctm[closest_index]
 
         counter += 1
 
     return sat_data
+

@@ -14,18 +14,18 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         interpolator = LinearNDInterpolator(
             interpol_func, (Z).flatten(), fill_value=np.nan)
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*10.0] = np.nan
+        ZZ[dists > threshold] = np.nan
     elif interpolator_type == 2:
         interpolator = NearestNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*10.0] = np.nan
+        ZZ[dists > threshold] = np.nan
     elif interpolator_type == 3:
         interpolator = RBFInterpolator(
             interpol_func, (Z).flatten(), neighbors=5)
         XX = np.stack([X.ravel(), Y.ravel()], -1)
         ZZ = interpolator(XX)
         ZZ = ZZ.reshape(np.shape(X))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold] = np.nan
     else:
         raise Exception(
             "other type of interpolation methods has not been implemented yet")
@@ -121,8 +121,8 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
     lat_grid = np.arange(lat_ctm_min, lat_ctm_max+grid_size, grid_size)
     lons_grid, lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
     # fake a ctm for upscaling (1x1)
-    lon_grid = np.arange(lon_ctm_min, lon_ctm_max+1.0, 1.0)
-    lat_grid = np.arange(lat_ctm_min, lat_ctm_max+1.0, 1.0)
+    lon_grid = np.arange(lon_ctm_min, lon_ctm_max+1.0, 0.1)
+    lat_grid = np.arange(lat_ctm_min, lat_ctm_max+1.0, 0.1)
     lons_grid_ctm, lats_grid_ctm = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
     ctm_models_coordinate = {}
     ctm_models_coordinate["Latitude"] = lats_grid_ctm
@@ -136,15 +136,13 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
     xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
     dists, _ = tree.query(xi)
 
-    latitude_center = lats_grid
-    longitude_center = lons_grid
     print('Gridding GOSAT point data into 2D images...')
     # interpolate 2Ds fields
     print('....................... vcd')
-    vcd =  _upscaler(lons_grid, lats_grid,_interpolosis(
+    longitude_center,latitude_center,vcd,_ =  _upscaler(lons_grid, lats_grid,_interpolosis(
         tri, sat_data.x_col*mask, lons_grid, lats_grid, 1, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
-    xch4 =  _upscaler(lons_grid, lats_grid,_interpolosis(
+    _,_,xch4,_ =  _upscaler(lons_grid, lats_grid,_interpolosis(
         tri, sat_data.x_col*mask, lons_grid, lats_grid, 1, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
 
@@ -152,12 +150,12 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
     tropopause = np.empty((1))
 
     print('....................... quality flag')
-    quality_flag =  _upscaler(lons_grid, lats_grid,_interpolosis(
+    _,_,quality_flag,_ =  _upscaler(lons_grid, lats_grid,_interpolosis(
         tri, mask_for_interpolation, lons_grid, lats_grid, 2, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
 
     print('....................... error')
-    uncertainty = _upscaler(lons_grid, lats_grid,_interpolosis(
+    _,_,uncertainty,_ = _upscaler(lons_grid, lats_grid,_interpolosis(
         tri, sat_data.uncertainty**2*mask, lons_grid, lats_grid, 1, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
     uncertainty = np.sqrt(uncertainty)
@@ -169,7 +167,7 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
             print('....................... AKs [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-            averaging_kernels[z, :, :] = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.averaging_kernels[z, :].squeeze()
+            _,_,averaging_kernels[z, :, :],_ = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.averaging_kernels[z, :].squeeze()
                                                                           * mask, lons_grid, lats_grid, 1, dists, grid_size),
                                                                           ctm_models_coordinate, grid_size, threshold_ctm)
         pressure_mid = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(latitude_center)[0],
@@ -177,7 +175,7 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
             print('....................... pmids [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-            pressure_mid[z, :, :] = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.pressure_mid[z, :].squeeze()
+            _,_,pressure_mid[z, :, :],_ = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.pressure_mid[z, :].squeeze()
                                                                       * mask, lons_grid, lats_grid, 1, dists, grid_size),
                                                                       ctm_models_coordinate, grid_size, threshold_ctm)
         apriori_profile = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(latitude_center)[0],
@@ -185,7 +183,7 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
             print('....................... apriori profile [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-            apriori_profile[z, :, :] = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.apriori_profile[z, :].squeeze()
+            _,_,apriori_profile[z, :, :],_ = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.apriori_profile[z, :].squeeze()
                                                                          * mask, lons_grid, lats_grid, 1, dists, grid_size),
                                                                          ctm_models_coordinate, grid_size, threshold_ctm)
         pressure_weights = np.zeros((np.shape(sat_data.pressure_mid)[0], np.shape(latitude_center)[0],
@@ -193,7 +191,7 @@ def filler_gosatxch4(grid_size: float, sat_data, flag_thresh=0.75):
         for z in range(0, np.shape(sat_data.pressure_mid)[0]):
             print('....................... pressure weights [' + str(z+1) +
                   '/' + str(np.shape(sat_data.pressure_mid)[0]) + ']')
-            pressure_weights[z, :, :] = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.pressure_weight[z, :].squeeze()
+            _,_,pressure_weights[z, :, :],_ = _upscaler(lons_grid, lats_grid,_interpolosis(tri, sat_data.pressure_weight[z, :].squeeze()
                                                                          * mask, lons_grid, lats_grid, 1, dists, grid_size),
                                                                          ctm_models_coordinate, grid_size, threshold_ctm)
     if isinstance(sat_data, satellite_opt):

@@ -190,6 +190,13 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
             fname, gasname), axis=0)*1e9  # ppbv
         # the purpose of this part is to reduce memory usage
         gas_profile = temp.astype('float32')
+        # if CH4 is read, we need to convert it to dry mixing ratio
+        if gasname == 'CH4':
+           QV = np.flip(_read_nc(fname, 'QV'),axis=0).astype('float32')
+           water_vapor_mixing_ratio = QV/(1-QV)
+           MW_air = 28.96 #g/mol
+           MW_water = 18.015 #g/mol
+           gas_profile = gas_profile*(1+water_vapor_mixing_ratio*(MW_air/MW_water))
         temp = []
         # shape up the ctm class
         eccoh_data = ctm_model(latitude, longitude, time, gas_profile,
@@ -775,11 +782,11 @@ def gosat_reader_xch4(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
     gosat = satellite_opt(xch4, time, [], tropopause, latitude_center,
                            longitude_center, [], [], uncertainty, 1-quality_flag, p_mid, AKs, [], [], [], [], np.empty((1)), apriori_profile, np.empty((1)), np.empty((1)), xch4, PW, 'GOSAT')
     # since gosat does image the earth, we need to convert the points to gridded maps using filler_gosat.py
-    gosat = filler_gosatxch4(0.1, gosat, flag_thresh=0.0)
+    gosat = filler_gosatxch4(1.0, gosat, flag_thresh=0.0)
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.25  # degree
+        grid_size = 1.0  # degree
         gosat = interpolator(
             1, grid_size, gosat, ctm_models_coordinate, flag_thresh=0.0)
     # return
@@ -1036,30 +1043,27 @@ if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data(
-        '200905', 'CH4', frequency_opt='3-hourly', averaged=True)
+        '201012', 'CH4', frequency_opt='3-hourly', averaged=True)
     reader_obj.add_satellite_data(
-        'GOSAT', Path('/media/asouri/Amir_5TB/NASA/GOSAT_XCH4/CH4_GOS_OCPR'))
+        'GOSAT', Path('/discover/nobackup/asouri/SHARED/GOSAT_XCH4/CH4_GOS_OCPR/'))
     reader_obj.read_satellite_data(
-        '200905', read_ak=True, num_job=1)
+        '201012', read_ak=True, num_job=12)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
 
     output = np.zeros((np.shape(latitude)[0], np.shape(
         latitude)[1], len(reader_obj.sat_data)))
-    output2 = np.zeros_like(output)
     counter = -1
     for trop in reader_obj.sat_data:
         counter = counter + 1
         if trop is None:
             continue
-        output[:, :, counter] = trop.vcd
-        output2[:, :, counter] = trop.uncertainty
+        output[:, :, counter] = trop.x_col
 
     #output[output <= 0.0] = np.nan
     moutput = {}
     moutput["vcds"] = output
-    moutput["quality_flag"] = output2
     moutput["lat"] = latitude
     moutput["lon"] = longitude
-    savemat("vcds_mopitt.mat", moutput)
+    savemat("xcol_gosat.mat", moutput)

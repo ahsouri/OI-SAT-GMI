@@ -53,13 +53,17 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
     size_grid_model_lon = np.abs(ctm_longitude[0, 0]-ctm_longitude[0, 1])
     size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
 
-    if (size_grid_model_lon >= grid_size) or (size_grid_model_lat >= grid_size):
+    if (size_grid_model_lon > grid_size) or (size_grid_model_lat > grid_size):
         # upscaling is needed
         size_kernel_x = np.floor(size_grid_model_lon/grid_size)
         size_kernel_y = np.floor(size_grid_model_lat/grid_size)
         if size_kernel_x == 0 : size_kernel_x = 1
         if size_kernel_y == 0 : size_kernel_y = 1
         kernel = _boxfilter(size_kernel_y, size_kernel_x)
+        # TO DO, in case of large jumps from small pixels to large ones
+        # you may exagerate the NaN boxes which seems to be a problem for
+        # satelite observations like GOSAT having too many gaps so I need 
+        # to figure out a better solution for this later
         Z = signal.convolve2d(Z, kernel, boundary='symm', mode='same')
         # define the triangulation
         points = np.zeros((np.size(X), 2))
@@ -264,6 +268,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
             _, _,  apriori_profile[z, :, :], _ = _upscaler(lons_grid, lats_grid,
                                                            _interpolosis(tri, sat_data.apriori_profile[z, :, :].squeeze()
                                                                          * mask, lons_grid, lats_grid, interpolator_type, dists, grid_size), ctm_models_coordinate, grid_size, threshold_ctm)
+    print(upscaled_ctm_needed)
     if isinstance(sat_data, satellite_opt):
         interpolated_sat = satellite_opt(vcd, sat_data.time, [], tropopause, latitude_center, longitude_center, [
         ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], [],

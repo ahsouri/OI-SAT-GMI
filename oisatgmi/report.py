@@ -50,6 +50,8 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
         cbar.set_label(r'$[ \times 10^{18}molec.cm^{-2}] $', fontsize=18)
     elif unit == 5:
         cbar.set_label(r'$[ppmv] $', fontsize=18)
+    elif unit == 6:
+        cbar.set_label(r'$[ppbv] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
@@ -160,16 +162,16 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         vmin_aux = 0
         vmax_aux = 0.15
     if gasname == 'CH4':
-        vmin_vcd = 0.0
-        vmax_vcd = 2000.0
+        vmin_vcd = 1750.0
+        vmax_vcd = 1900.0
         vmax_error = 20
-        vmin_incre = -2.0
-        vmax_incre = 2.0
-        unit = 4
+        vmin_incre = -40.0
+        vmax_incre = 40.0
+        unit = 6
         aux = 'xcol'
-        unit_aux = 5
-        vmin_aux = 0
-        vmax_aux = 2000
+        unit_aux = 6
+        vmin_aux = 1750.0
+        vmax_aux = 1900.0
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +
@@ -190,10 +192,9 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         plotter(lon, lat, aux2, 'temp/aux2_' +
             fname + '.png', 'old AMF', 2, 0.0, 4)
     if aux == "xcol":
-        print('hi')
         plotter(lon, lat, aux1, 'temp/aux1_' +
-            fname + '.png', 'XCO (SAT)', unit_aux, vmin_aux, vmax_aux)
+            fname + '.png', 'X_col (SAT)', unit_aux, vmin_aux, vmax_aux)
         plotter(lon, lat, aux2, 'temp/aux2_' +
-            fname + '.png', 'XCO (CTM-Prior)', unit_aux, vmin_aux, vmax_aux)
+            fname + '.png', 'X_col (CTM-Prior)', unit_aux, vmin_aux, vmax_aux)
 
     topdf(fname, ffolder, 'OI_report_' + fname + '.pdf')
