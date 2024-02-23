@@ -50,6 +50,17 @@ class satellite_opt:
     sensor: str
 
 @dataclass
+class satellite_ssmis:
+    vcd: np.ndarray
+    uncertainty: np.ndarray
+    time: datetime.datetime
+    latitude_center: np.ndarray
+    longitude_center: np.ndarray
+    ctm_upscaled_needed: bool
+    ctm_vcd: np.ndarray
+    sensor: str
+
+@dataclass
 class ctm_model:
     latitude: np.ndarray
     longitude: np.ndarray

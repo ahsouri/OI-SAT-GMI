@@ -8,7 +8,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import numpy as np
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.basemap import Basemap
 
 def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
@@ -51,6 +50,8 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
     elif unit == 5:
         cbar.set_label(r'$[ppmv] $', fontsize=18)
     elif unit == 6:
+        cbar.set_label(r'$[ppbv] $', fontsize=18)
+    elif unit == 7:
         cbar.set_label(r'$[ppbv] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
@@ -172,6 +173,15 @@ def report(lon: np.ndarray, lat: np.ndarray, ctm_vcd_before: np.ndarray, ctm_vcd
         unit_aux = 6
         vmin_aux = 1750.0
         vmax_aux = 1900.0
+    if gasname == 'H2O':
+        vmin_vcd = 0
+        vmax_vcd = 70
+        vmax_error = 20
+        vmin_incre = -5
+        vmax_incre = 5
+        unit = 7
+        aux = 'null'    
+
     plotter(lon, lat, ctm_vcd_before, 'temp/ctm_vcd_before_' +
             fname + '.png', 'CTM VCD (prior)', unit, vmin_vcd, vmax_vcd)
     plotter(lon, lat, ctm_vcd_after, 'temp/ctm_vcd_after_' +

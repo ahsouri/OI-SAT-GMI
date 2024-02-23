@@ -4,8 +4,9 @@ import datetime
 import glob
 from joblib import Parallel, delayed
 from netCDF4 import Dataset
-from oisatgmi.config import satellite_amf, satellite_opt, ctm_model
+from oisatgmi.config import satellite_amf, satellite_opt, ctm_model, satellite_ssmis
 from oisatgmi.interpolator import interpolator
+from oisatgmi.interpolator_ssmis import interpolator_ssmis
 from oisatgmi.filler_gosat import filler_gosatxch4
 import warnings
 from scipy.io import savemat
@@ -197,6 +198,9 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
            MW_air = 28.96 #g/mol
            MW_water = 18.015 #g/mol
            gas_profile = gas_profile*(1+water_vapor_mixing_ratio*(MW_air/MW_water))
+        if gasname == 'H2O':
+           gas_profile = np.flip(_read_nc(fname, 'QV'),axis=0).astype('float32')
+
         temp = []
         # shape up the ctm class
         eccoh_data = ctm_model(latitude, longitude, time, gas_profile,
@@ -792,6 +796,30 @@ def gosat_reader_xch4(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
     # return
     return gosat
 
+def ssmis_reader_wv(fname: str, ctm_models_coordinate=None) -> satellite_ssmis:
+    # say which file is being read
+    print("Currently reading: " + fname.split('/')[-1])
+    date = fname.split('v7')[-6:-1]
+    print(date)
+    time = datetime.datetime(
+        int(date[0:4]), int(date[4,6]), 1) 
+    # read lat/lon at centers
+    latitude_center = _read_nc(
+        fname, 'latitude').astype('float32')
+    longitude_center = _read_nc(
+        fname, 'longitude').astype('float32')
+    # read xch4
+    pwv = _read_nc(fname, 'atmosphere_water_vapor_content')
+    pwv[np.where((pwv >= 75.0) | (np.isinf(pwv)))] = np.nan
+    ssmis = satellite_ssmis(pwv,pwv*0.05,time,latitude_center,longitude_center,False,[],'SSMI')
+    # interpolation
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 0.25  # degree
+        ssmis = interpolator_ssmis(
+            1, grid_size, ssmis, ctm_models_coordinate)
+    # return
+    return ssmis
 
 def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
     '''
@@ -868,7 +896,7 @@ def mopitt_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, re
              YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
              num_job [int]: the number of jobs for parallel computation
-        Output [tropomi]: the mopitt @dataclass
+        Output [mopitt]: the mopitt @dataclass
     '''
     L3_files = sorted(glob.glob(product_dir + "/*" +
                                 YYYYMM[0:4] + YYYYMM[4::] + "*.he5"))
@@ -886,7 +914,7 @@ def gosat_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, rea
              YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
              read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
              num_job [int]: the number of jobs for parallel computation
-        Output [tropomi]: the mopitt @dataclass
+        Output [gosat]: the mopitt @dataclass
     '''
     L2_files = sorted(glob.glob(product_dir + "/" + YYYYMM[0:4] + "/*" +
                                 YYYYMM[0:4] + YYYYMM[4::] + "*.nc"))
@@ -894,6 +922,21 @@ def gosat_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, rea
         L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
 
+def ssmis_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, num_job=1):
+    '''
+        reading ssmi water vapor column data
+             product_dir [str]: the folder containing the tropomi data
+             ctm_models_coordinate [dict]: the ctm coordinates
+             YYYYMM [int]: the target month and year, e.g., 202005 (May 2020)
+             num_job [int]: the number of jobs for parallel computation
+        Output [ssmis]: the ssmi @dataclass
+    '''
+    L3_files = sorted(glob.glob(product_dir + "/*" +
+                                YYYYMM[0:4] + YYYYMM[4::] + "*.he5"))
+    L3_files = _remove_empty_files(L3_files)
+    outputs_sat = Parallel(n_jobs=num_job)(delayed(ssmis_reader_wv)(
+        L3_files[k], ctm_models_coordinate=ctm_models_coordinate) for k in range(len(L3_files)))
+    return outputs_sat
 
 class readers(object):
 

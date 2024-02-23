@@ -1,12 +1,11 @@
 import numpy as np
-from scipy import interpolate
 from oisatgmi.interpolator import _upscaler
 from scipy.spatial import Delaunay
 from scipy.io import savemat
 
 
-def ak_conv_gosat(ctm_data: list, sat_data: list):
-    print('Averaging Kernel Conv begins...')
+def pwv_calculator(ctm_data: list, sat_data: list):
+    print('PWV begins...')
     # list the time in ctm_data
     time_ctm = []
     time_ctm_hour_only = []
@@ -51,21 +50,16 @@ def ak_conv_gosat(ctm_data: list, sat_data: list):
             closest_index = int(0)
             closest_index_day = int(0)
 
-        print("The closest GMI file used for the L2 at " + str(L2_granule.time) +
+        print("The closest CTM file used for the L2 at " + str(L2_granule.time) +
               " is at " + str(time_ctm_datetype[closest_index_day]))
         # take the profile and pressure from the right ctm data
         Mair = 28.97e-3
         g = 9.80665
         N_A = 6.02214076e23
         if (ctm_data[0].ctmtype == "ECCOH") or (ctm_data[0].ctmtype == "FREE"):
-           ctm_mid_pressure = ctm_data[closest_index_day].pressure_mid[ :, :, :].squeeze(
-           )
-           ctm_profile = ctm_data[closest_index_day].gas_profile[ :, :, :].squeeze(
-           )
            ctm_deltap = ctm_data[closest_index_day].delta_p[ :, :, :].squeeze(
            )
-           ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
-           ctm_air_partial_column = ctm_deltap/g/Mair*N_A*1e-4*1e-15*100.0
+           ctm_partial_column = ctm_deltap*ctm_profile/g
         elif ctm_data[0].ctmtype == "GMI":
            ctm_mid_pressure = np.nanmean(ctm_data[closest_index_day].pressure_mid[:, :, :, :], axis=0).squeeze(
            )
@@ -74,16 +68,12 @@ def ak_conv_gosat(ctm_data: list, sat_data: list):
            ctm_deltap = np.nanmean(ctm_data[closest_index_day].delta_p[:, :, :, :], axis=0).squeeze(
            )
            ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
-           ctm_air_partial_column = ctm_deltap/g/Mair*N_A*1e-4*1e-15*100.0
         # see if we need to upscale the ctm fields
         if L2_granule.ctm_upscaled_needed == True:
-            ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
+            ctm_partial_column_new = np.zeros((np.shape(ctm_deltap)[0],
                                              np.shape(L2_granule.longitude_center)[0], np.shape(
                                                  L2_granule.longitude_center)[1],
                                              ))*np.nan
-            ctm_profile_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
-            ctm_partial_column_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
-            ctm_air_partial_column_new = np.zeros_like(ctm_mid_pressure_new)*np.nan
             sat_coordinate = {}
             sat_coordinate["Longitude"] = L2_granule.longitude_center
             sat_coordinate["Latitude"] = L2_granule.latitude_center
@@ -96,52 +86,17 @@ def ak_conv_gosat(ctm_data: list, sat_data: list):
             size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
             gridsize_ctm = np.sqrt(size_grid_model_lon**2 + size_grid_model_lat**2)
             for z in range(0, np.shape(ctm_mid_pressure)[0]):
-                _, _, ctm_mid_pressure_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
-                                                                   ctm_mid_pressure[z, :, :], sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
-                _, _, ctm_profile_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
-                                                              ctm_profile[z, :, :], sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
                 _, _, ctm_partial_column_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
                                                                      ctm_partial_column[z, :, :], sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
-                _, _, ctm_air_partial_column_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
-                                                                     ctm_air_partial_column[z, :, :], sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
-            ctm_mid_pressure = ctm_mid_pressure_new
-            ctm_profile = ctm_profile_new
+            
             ctm_partial_column = ctm_partial_column_new
-            ctm_air_partial_column = ctm_air_partial_column_new
-            ctm_profile_new = []
-            ctm_mid_pressure_new = []
             ctm_partial_column_new = []
-            ctm_air_partial_column_new = []
-
-        model_VCD = np.zeros_like(L2_granule.vcd)*np.nan
-        model_xcol = np.zeros_like(L2_granule.vcd)*np.nan
-        for i in range(0, np.shape(L2_granule.x_col)[0]):
-            for j in range(0, np.shape(L2_granule.x_col)[1]):
-                if np.isnan(L2_granule.x_col[i, j]):
-                    continue
-                ctm_profile_tmp = ctm_profile[:, i, j].squeeze()
-                ctm_mid_pressure_tmp = ctm_mid_pressure[:, i, j].squeeze()
-                # interpolate the prior profiles
-                f = interpolate.interp1d(
-                       np.log(ctm_mid_pressure_tmp),
-                       ctm_profile_tmp, fill_value='extrapolate')
-                interpolated_ctm_profile = f(
-                    np.log(L2_granule.pressure_mid[:, i, j].squeeze()))
-                # after applying AKs
-                model_xcol_temp = L2_granule.apriori_profile[:,i,j].squeeze() +\
-                      (interpolated_ctm_profile - L2_granule.apriori_profile[:,i,j].squeeze())*L2_granule.averaging_kernels[:,i,j].squeeze()
-                model_xcol_temp = model_xcol_temp*L2_granule.pressure_weight[:,i,j].squeeze()
-                model_xcol_temp[model_xcol_temp<=0] = np.nan
-                model_xcol[i,j] = np.nansum(model_xcol_temp) #ppbv
-
-        # updating the ctm data
-        sat_data[counter].ctm_vcd = model_VCD # this will be nan for gosat because we will deal with XCH4 only
-        model_xcol[np.isinf(L2_granule.x_col)] = np.nan
-        model_xcol[np.isnan(L2_granule.x_col)] = np.nan
-        sat_data[counter].ctm_xcol = model_xcol
-        sat_data[counter].ctm_time_at_sat = time_ctm[closest_index]
+            
+        model_PWV = np.nansum(ctm_partial_column/1000.0,axis=0).squeeze()
+        model_PWV[np.isnan(L2_granule.vcd)] = np.nan
+        model_PWV[np.isinf(L2_granule.vcd)] = np.nan
+        sat_data[counter].ctm_vcd = model_PWV
 
         counter += 1
 
     return sat_data
-
