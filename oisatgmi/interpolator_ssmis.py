@@ -15,11 +15,11 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         interpolator = LinearNDInterpolator(
             interpol_func, (Z).flatten(), fill_value=np.nan)
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold] = np.nan
     elif interpolator_type == 2:
         interpolator = NearestNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold] = np.nan
     elif interpolator_type == 3:
         interpolator = RBFInterpolator(
             interpol_func, (Z).flatten(), neighbors=5)

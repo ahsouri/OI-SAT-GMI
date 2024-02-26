@@ -12,6 +12,7 @@ import warnings
 from scipy.io import savemat
 import yaml
 import os
+import h5py
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -24,6 +25,13 @@ def _read_nc(filename, var):
     nc_fid.close()
     return np.squeeze(out)
 
+def _read_ssmi(filename, var):
+    # reading nc files without a group
+    nc_f = filename
+    nc_fid = h5py.File(nc_f, 'r')
+    out = np.array(nc_fid[var])
+    nc_fid.close()
+    return np.squeeze(out)
 
 def _get_nc_attr(filename, var):
     # getting attributes
@@ -809,8 +817,11 @@ def ssmis_reader_wv(fname: str, ctm_models_coordinate=None) -> satellite_ssmis:
         fname, 'longitude').astype('float32')-180.0
     longitude_center,latitude_center = np.meshgrid(longitude_center,latitude_center)
     # read xch4
-    pwv = _read_nc(fname, 'atmosphere_water_vapor_content')
+    pwv = _read_ssmi(fname, 'atmosphere_water_vapor_content').astype('float32')
+    pwv[pwv>250.0] = np.nan
+    pwv = pwv*0.3
     pwv[np.where((pwv >= 75.0) | (np.isinf(pwv)))] = np.nan
+
     ssmis = satellite_ssmis(pwv,pwv*0.05,time,latitude_center,longitude_center,False,[],'SSMI')
     # interpolation
     if (ctm_models_coordinate is not None):
@@ -1058,7 +1069,7 @@ class readers(object):
                 self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)
         if self.ctm_product == 'FREE':
             # Read the control file
-            with open('control_free.yml', 'r') as stream:
+            with open('oisatgmi/control_free.yml', 'r') as stream:
                 try:
                     ctrl_opts = yaml.safe_load(stream)
                 except yaml.YAMLError as exc:
@@ -1088,13 +1099,13 @@ class readers(object):
 # testing
 if __name__ == "__main__":
     reader_obj = readers()
-    reader_obj.add_ctm_data('GMI', Path('download_bucket/gmi/'))
+    reader_obj.add_ctm_data('FREE', Path('download_bucket/gmi/'))
     reader_obj.read_ctm_data(
-        '201012', 'CH4', frequency_opt='3-hourly', averaged=True)
+        '201010', 'H2O', frequency_opt='3-hourly', averaged=True)
     reader_obj.add_satellite_data(
-        'GOSAT', Path('/discover/nobackup/asouri/SHARED/GOSAT_XCH4/CH4_GOS_OCPR/'))
+        'SSMIS', Path('/media/asouri/Amir_5TB/NASA/SSMIS/'))
     reader_obj.read_satellite_data(
-        '201012', read_ak=True, num_job=12)
+        '201010', read_ak=True, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
@@ -1106,11 +1117,11 @@ if __name__ == "__main__":
         counter = counter + 1
         if trop is None:
             continue
-        output[:, :, counter] = trop.x_col
+        output[:, :, counter] = trop.vcd
 
     #output[output <= 0.0] = np.nan
     moutput = {}
     moutput["vcds"] = output
     moutput["lat"] = latitude
     moutput["lon"] = longitude
-    savemat("xcol_gosat.mat", moutput)
+    savemat("ssmis.mat", moutput)
