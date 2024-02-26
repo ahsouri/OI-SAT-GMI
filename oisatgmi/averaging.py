@@ -1,7 +1,7 @@
 import numpy as np
 import datetime
 from scipy.io import savemat
-from oisatgmi.config import satellite_amf
+from oisatgmi.config import satellite_amf,satellite_opt
 
 
 def _daterange(start_date, end_date):
@@ -63,10 +63,12 @@ def averaging(startdate: str, enddate: str, reader_obj):
                     if isinstance(sat_data, satellite_amf):
                         sat_chosen_aux1.append(sat_data.new_amf)
                         sat_chosen_aux2.append(sat_data.old_amf)
-                    else:
+                    elif isinstance(sat_data, satellite_opt):
                         sat_chosen_aux1.append(sat_data.x_col)
                         sat_chosen_aux2.append(sat_data.ctm_xcol)
-
+                    else: # null
+                        sat_chosen_aux1.append(np.nan*sat_data.vcd)
+                        sat_chosen_aux2.append(np.nan*sat_data.vcd)
             sat_chosen_vcd = np.array(sat_chosen_vcd)
             sat_chosen_vcd[np.isinf(sat_chosen_vcd)] = np.nan
             sat_chosen_error = np.array(sat_chosen_error)

@@ -59,7 +59,9 @@ def pwv_calculator(ctm_data: list, sat_data: list):
         if (ctm_data[0].ctmtype == "ECCOH") or (ctm_data[0].ctmtype == "FREE"):
            ctm_deltap = ctm_data[closest_index_day].delta_p[ :, :, :].squeeze(
            )
-           ctm_partial_column = ctm_deltap*ctm_profile/g
+           ctm_profile = ctm_data[closest_index_day].gas_profile[ :, :, :].squeeze(
+           )
+           ctm_partial_column = ctm_deltap*ctm_profile/g/1000.0
         elif ctm_data[0].ctmtype == "GMI":
            ctm_mid_pressure = np.nanmean(ctm_data[closest_index_day].pressure_mid[:, :, :, :], axis=0).squeeze(
            )
@@ -88,10 +90,9 @@ def pwv_calculator(ctm_data: list, sat_data: list):
             for z in range(0, np.shape(ctm_mid_pressure)[0]):
                 _, _, ctm_partial_column_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
                                                                      ctm_partial_column[z, :, :], sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
-            
             ctm_partial_column = ctm_partial_column_new
             ctm_partial_column_new = []
-            
+
         model_PWV = np.nansum(ctm_partial_column/1000.0,axis=0).squeeze()
         model_PWV[np.isnan(L2_granule.vcd)] = np.nan
         model_PWV[np.isinf(L2_granule.vcd)] = np.nan

@@ -186,6 +186,7 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
         delta_p = np.flip(delta_p, axis=0)  # from bottom to top
         pressure_mid = _read_nc(fname, 'PL').astype('float32')/100.0
         pressure_mid = np.flip(pressure_mid, axis=0)  # from bottom to top
+        if gasname == 'H2O': gasname = 'QV'
         # read gas concentration
         temp = np.flip(_read_nc(
             fname, gasname), axis=0)*1e9  # ppbv
@@ -198,8 +199,6 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
            MW_air = 28.96 #g/mol
            MW_water = 18.015 #g/mol
            gas_profile = gas_profile*(1+water_vapor_mixing_ratio*(MW_air/MW_water))
-        if gasname == 'H2O':
-           gas_profile = np.flip(_read_nc(fname, 'QV'),axis=0).astype('float32')
 
         temp = []
         # shape up the ctm class
@@ -800,14 +799,15 @@ def ssmis_reader_wv(fname: str, ctm_models_coordinate=None) -> satellite_ssmis:
     # say which file is being read
     print("Currently reading: " + fname.split('/')[-1])
     date = fname.split('v7')[-6:-1]
-    print(date)
+    date = str(date[0])
     time = datetime.datetime(
-        int(date[0:4]), int(date[4,6]), 1) 
+        int(date[-6:-2]), int(date[-2::]), 1)
     # read lat/lon at centers
     latitude_center = _read_nc(
         fname, 'latitude').astype('float32')
     longitude_center = _read_nc(
-        fname, 'longitude').astype('float32')
+        fname, 'longitude').astype('float32')-180.0
+    longitude_center,latitude_center = np.meshgrid(longitude_center,latitude_center)
     # read xch4
     pwv = _read_nc(fname, 'atmosphere_water_vapor_content')
     pwv[np.where((pwv >= 75.0) | (np.isinf(pwv)))] = np.nan
@@ -932,7 +932,7 @@ def ssmis_reader(product_dir: str, ctm_models_coordinate: dict, YYYYMM: str, num
         Output [ssmis]: the ssmi @dataclass
     '''
     L3_files = sorted(glob.glob(product_dir + "/*" +
-                                YYYYMM[0:4] + YYYYMM[4::] + "*.he5"))
+                                YYYYMM[0:4] + YYYYMM[4::] + "*.nc"))
     L3_files = _remove_empty_files(L3_files)
     outputs_sat = Parallel(n_jobs=num_job)(delayed(ssmis_reader_wv)(
         L3_files[k], ctm_models_coordinate=ctm_models_coordinate) for k in range(len(L3_files)))
@@ -1004,6 +1004,10 @@ class readers(object):
             self.sat_data = gosat_reader(self.satellite_product_dir.as_posix(),
                                          ctm_models_coordinate,
                                          YYYYMM, read_ak=read_ak, num_job=num_job)
+        elif satellite == 'SSMIS':
+            self.sat_data = ssmis_reader(self.satellite_product_dir.as_posix(),
+                                         ctm_models_coordinate,
+                                         YYYYMM, num_job=num_job)
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
