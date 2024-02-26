@@ -35,6 +35,8 @@ if sensor == "MOPITT":
    oisatgmi_obj.conv_ak(sensor)
 elif sensor == "GOSAT":
    oisatgmi_obj.conv_ak(sensor)
+elif sensor == "SSMIS":
+   oisatgmi_obj.cal_pwv()
 else:
    oisatgmi_obj.recal_amf()
 if month != 12:

@@ -2,6 +2,7 @@ from oisatgmi.reader import readers
 from pathlib import Path
 from oisatgmi.amf_recal import amf_recal
 from oisatgmi.averaging import averaging
+from oisatgmi.pwv_cal import pwv_calculator
 from oisatgmi.optimal_interpolation import OI
 from oisatgmi.report import report
 from oisatgmi.ak_conv_mopitt import ak_conv_mopitt
@@ -36,6 +37,10 @@ class oisatgmi(object):
 
         self.reader_obj.sat_data = amf_recal(
             self.reader_obj.ctm_data, self.reader_obj.sat_data)
+        
+    def cal_pwv(self):
+
+        self.reader_obj.sat_data = pwv_calculator(self.reader_obj.ctm_data, self.reader_obj.sat_data)
 
     def conv_ak(self,sensor:str):
         if sensor == 'MOPITT':
