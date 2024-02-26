@@ -814,7 +814,8 @@ def ssmis_reader_wv(fname: str, ctm_models_coordinate=None) -> satellite_ssmis:
     latitude_center = _read_nc(
         fname, 'latitude').astype('float32')
     longitude_center = _read_nc(
-        fname, 'longitude').astype('float32')-180.0
+        fname, 'longitude').astype('float32')
+    longitude_center[longitude_center>180.0] = longitude_center[longitude_center>180.0]-360.0
     longitude_center,latitude_center = np.meshgrid(longitude_center,latitude_center)
     # read xch4
     pwv = _read_ssmi(fname, 'atmosphere_water_vapor_content').astype('float32')

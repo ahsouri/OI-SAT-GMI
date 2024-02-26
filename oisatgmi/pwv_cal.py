@@ -61,7 +61,7 @@ def pwv_calculator(ctm_data: list, sat_data: list):
            )
            ctm_profile = ctm_data[closest_index_day].gas_profile[ :, :, :].squeeze(
            )
-           ctm_partial_column = ctm_deltap*ctm_profile/g/1000.0
+           ctm_partial_column = ctm_deltap*ctm_profile/g/10000.0
         elif ctm_data[0].ctmtype == "GMI":
            ctm_mid_pressure = np.nanmean(ctm_data[closest_index_day].pressure_mid[:, :, :, :], axis=0).squeeze(
            )

@@ -52,7 +52,7 @@ def plotter(X, Y, Z, fname: str, title: str, unit: int, vmin, vmax):
     elif unit == 6:
         cbar.set_label(r'$[ppbv] $', fontsize=18)
     elif unit == 7:
-        cbar.set_label(r'$[ppbv] $', fontsize=18)
+        cbar.set_label(r'$[mm] $', fontsize=18)
     plt.title(title, loc='left', fontweight='bold', fontsize=20)
     plt.tight_layout()
     fig.savefig(fname, format='png', dpi=300)
