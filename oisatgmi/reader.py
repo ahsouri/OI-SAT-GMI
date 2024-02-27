@@ -131,8 +131,12 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
         # read gas concentration
         if (gasname == 'HCHO' or gasname == 'FORM'):
             gasname = 'CH2O'
-        temp = np.flip(_read_nc(
-            fname_gas, gasname), axis=1)*1e9  # ppbv
+        if gasname != 'H2O':
+           temp = np.flip(_read_nc(
+               fname_gas, gasname), axis=1)*1e9  # ppbv
+        else:
+           temp = np.flip(_read_nc(
+               fname_met, 'QV'), axis=1)             
         # the purpose of this part is to reduce memory usage
         if gasname != 'O3':
             gas_profile = temp.astype('float16')

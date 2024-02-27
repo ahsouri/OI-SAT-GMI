@@ -63,13 +63,11 @@ def pwv_calculator(ctm_data: list, sat_data: list):
            )
            ctm_partial_column = ctm_deltap*ctm_profile/g/10000.0
         elif ctm_data[0].ctmtype == "GMI":
-           ctm_mid_pressure = np.nanmean(ctm_data[closest_index_day].pressure_mid[:, :, :, :], axis=0).squeeze(
-           )
            ctm_profile = np.nanmean(ctm_data[closest_index_day].gas_profile[:, :, :, :], axis=0).squeeze(
            )
            ctm_deltap = np.nanmean(ctm_data[closest_index_day].delta_p[:, :, :, :], axis=0).squeeze(
            )
-           ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
+           ctm_partial_column = ctm_deltap*ctm_profile/g/10000.0
         # see if we need to upscale the ctm fields
         if L2_granule.ctm_upscaled_needed == True:
             ctm_partial_column_new = np.zeros((np.shape(ctm_deltap)[0],
