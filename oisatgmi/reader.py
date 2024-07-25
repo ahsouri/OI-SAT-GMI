@@ -136,12 +136,9 @@ def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequency_o
                fname_gas, gasname), axis=1)*1e9  # ppbv
         else:
            temp = np.flip(_read_nc(
-               fname_met, 'QV'), axis=1)             
-        # the purpose of this part is to reduce memory usage
-        if gasname != 'O3':
-            gas_profile = temp.astype('float16')
-        else:
-            gas_profile = temp.astype('float32')
+               fname_met, 'QV'), axis=1)*1e9
+
+        gas_profile = temp.astype('float32')
         temp = []
         # shape up the ctm class
         gmi_data = ctm_model(latitude, longitude, time, gas_profile,
