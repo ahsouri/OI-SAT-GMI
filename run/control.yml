@@ -1,14 +1,14 @@
 # set your python executable path
-python_bin: '/home/asouri/anaconda3/bin/python3.9'
+python_bin: '/nobackup/jjung13/miniconda3/bin/python3.9'
 
 # to run the job on debug queue
-debug: False
+debug: True
 
 # number of jobs
-num_job: 36
+num_job: 24
 
 # set the name of CTM model (GMI)
-ctm_name: 'GMI'
+ctm_name: 'FREE'
 
 # set the path of CTM netcdf files (either relative or absolute)
 ctm_dir: 'download_bucket/gmi/'
@@ -23,10 +23,10 @@ ctm_avg: True
 ctm_error: 50.0
 
 # target gas (NO2, HCHO)
-gas: 'NO2'
+gas: 'HCHO'
 
-# the sensor name (OMI, TROPOMI)
-sensor: 'OMI'
+# the sensor name (OMI, TROPOMI, OMPS)
+sensor: 'TROPOMI'
 
 # consider scattering weights (or AKs) (memory intensive)
 read_AK: True
@@ -35,11 +35,12 @@ read_AK: True
 troposphere_only: True
 
 # set the path of L2 files
-sat_dir: 'download_bucket/omi_no2'
+sat_dir: '/nobackup/jjung13/ACMAP_satellite/TROPOMI_HCHO'
+#'/nobackup/jjung13/ACMAP_satellite/OMPS-NM_HCHO'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2019-05'
-end_date:   '2019-06'
+start_date: '2019-01'
+end_date:   '2019-01'
 
 # output folder for PDF reports
 output_pdf_dir: './report'

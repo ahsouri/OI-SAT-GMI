@@ -1,7 +1,7 @@
 # set your lowest/highest lat and lon
-lonll: -120.0
-lonur: -110.0
-latll: 30.0
-latur: 45.0
+lonll: -135.0
+lonur: -55.0
+latll: 20.0
+latur: 60.0
 # set the grid size of each box [degree; 1 degree ~ 110 km]
 gridsize: 0.25
