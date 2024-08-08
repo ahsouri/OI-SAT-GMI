@@ -901,7 +901,7 @@ def omps_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
     amf_total = _read_group_nc(fname, ['support_data'],'amf')
 
     vcd = _read_group_nc(fname,['key_science_data'],'column_amount') #unit: molecules/cm2
-    scd = vcd*amf_total
+    scd = amf_total*vcd
     vcd = (vcd*1e-15).astype('float16')
     scd = (scd*1e-15).astype('float16')
 
