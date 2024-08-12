@@ -4,4 +4,4 @@ lonur: -55.0
 latll: 20.0
 latur: 60.0
 # set the grid size of each box [degree; 1 degree ~ 110 km]
-gridsize: 0.25
+gridsize: 0.5

@@ -929,9 +929,12 @@ def omps_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
     for z in range(0,47):
         p_mid[z,:,:] = 0.5*(p_bdy[z,:,:] + p_bdy[z+1,:,:])
 
-    SWs = _read_group_nc(fname,['support_data'],'scattering_weights').astype('float16')
-    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) | (SWs > 100.0) | (SWs < 0.0))] = 0.0
+    if read_ak == True:
+        SWs = _read_group_nc(fname,['support_data'],'scattering_weights').astype('float16')
+    else:
+        SWs = np.empty((1))
 
+    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) | (SWs > 100.0) | (SWs < 0.0))] = 0.0
     uncertainty = _read_group_nc(fname,['key_science_data'],'column_uncertainty')
     uncertainty = (uncertainty*1e-15).astype('float16')
 
