@@ -6,7 +6,6 @@ from scipy.interpolate import RBFInterpolator
 from scipy import signal
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
-from scipy.io import savemat
 
 def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
     # to make the interpolator() shorter
