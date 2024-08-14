@@ -12,7 +12,7 @@ import warnings
 from scipy.io import savemat
 import yaml
 import os
-#import h5py
+import h5py
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -918,8 +918,20 @@ def omps_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> sa
     sur_pres = _read_group_nc(fname,['key_science_data'],'column_amount').astype('float16') #hpa
     nc_f = fname
     nc_fid = Dataset(nc_f,'r')
-    eta_a = getattr(nc_fid.groups['support_data'].variables['surface_pressure'],'eta_a').astype('float16')
-    eta_b = getattr(nc_fid.groups['support_data'].variables['surface_pressure'],'eta_b').astype('float16')
+    # there's some files not having surface pressure
+    eta_a = np.array([0., 0.04804826, 6.593752, 13.1348, 19.61311, 26.09201, 32.57081, 38.98201,
+        45.33901, 51.69611, 58.05321, 64.36264, 70.62198, 78.83422, 89.09992, 99.36521, 109.1817,
+        118.9586, 128.6959, 142.91, 156.26, 169.609, 181.619, 193.097, 203.259, 212.15, 218.776,
+        223.898, 224.363, 216.865, 201.192, 176.93, 150.393, 127.837, 108.663, 92.36572, 78.51231,
+        56.38791, 40.17541, 28.36781, 19.7916, 9.292942, 4.076571, 1.65079, 0.6167791, 0.211349, 0.06600001, 0.01])
+    eta_b = np.array([1., 0.984952, 0.963406, 0.941865, 0.920387, 0.898908, 0.877429, 0.856018, 
+        0.8346609, 0.8133039, 0.7919469, 0.7706375, 0.7493782, 0.721166, 0.6858999, 0.6506349, 
+        0.6158184, 0.5810415, 0.5463042, 0.4945902, 0.4437402, 0.3928911, 0.3433811, 0.2944031,
+        0.2467411, 0.2003501, 0.1562241, 0.1136021, 0.06372006, 0.02801004, 0.006960025, 8.175413e-09,
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+
+    #eta_a = getattr(nc_fid.groups['support_data'].variables['surface_pressure'],'eta_a').astype('float16')
+    #eta_b = getattr(nc_fid.groups['support_data'].variables['surface_pressure'],'eta_b').astype('float16')
 
     p_bdy = np.zeros((np.shape(eta_a)[0],np.shape(sur_pres)[0],np.shape(sur_pres)[1])).astype('float16')
     p_mid = np.zeros((47,np.shape(sur_pres)[0],np.shape(sur_pres)[1])).astype('float16')
