@@ -7,7 +7,6 @@ from scipy import signal
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 from scipy.spatial import cKDTree
 
-
 def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpolator_type: int, dists: np.array, threshold: float) -> np.array:
     # to make the interpolator() shorter
     if interpolator_type == 1:
@@ -52,6 +51,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
     ctm_longitude = ctm_models_coordinate['Longitude']
     size_grid_model_lon = np.abs(ctm_longitude[0, 0]-ctm_longitude[0, 1])
     size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
+
 
     if (size_grid_model_lon > grid_size) or (size_grid_model_lat > grid_size):
         # upscaling is needed
@@ -153,6 +153,7 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     upscaled_X, upscaled_Y, vcd, upscaled_ctm_needed = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.vcd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
+
     if isinstance(sat_data, satellite_amf):
         print('....................... scd')
         _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(

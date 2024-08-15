@@ -861,6 +861,106 @@ def tropomi_reader(product_dir: str, satellite_product_name: str, ctm_models_coo
             L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
     return outputs_sat
 
+def omps_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
+    print(product_dir + "/*" + YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc")
+    L2_files = sorted(glob.glob(product_dir + "/*" +
+        YYYYMM[0:4] + 'm' + YYYYMM[4::] + "*.nc"))
+    L2_files = _remove_empty_files(L2_files)
+
+    # read the files in parallel
+    if satellite_product_name.split('_')[-1] == 'HCHO':
+        outputs_sat = Parallel(n_jobs=num_job)(delayed(omps_reader_hcho)(
+            L2_files[k], ctm_models_coordinate=ctm_models_coordinate, read_ak=read_ak) for k in range(len(L2_files)))
+    else:
+        print("We have OMPS reader only for HCHO")
+
+
+    return outputs_sat
+
+def omps_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
+    '''
+       OMPS HCHO L2 reader
+       Inputs:
+             fname [str]: the name path of the L2 file
+             ctm_models_coordinate [dict]: a dictionary containing ctm lat and lon
+             read_ak [bool]: true for reading averaging kernels. this must be true for amf_recal
+       Output:
+             omps_hcho [satellite_amf]: a dataclass format (see config.py)
+    '''
+    # hcho reader
+    print("Currently reading: " + fname.split('/')[-1])
+    # read time
+    time = _read_group_nc(fname, ['geolocation'], 'time')
+    time = np.nanmean(time, axis=0)
+    time = np.squeeze(time)
+    time = datetime.datetime(1993,1,1) + datetime.timedelta(seconds=int(time))
+
+    latitude_center = _read_group_nc(fname, ['geolocation'], 'latitude').astype('float32')
+    longitude_center = _read_group_nc(fname, ['geolocation'], 'longitude').astype('float32')
+
+    amf_total = _read_group_nc(fname, ['support_data'],'amf')
+
+    vcd = _read_group_nc(fname,['key_science_data'],'column_amount') #unit: molecules/cm2
+    scd = amf_total*vcd
+    vcd = (vcd*1e-15).astype('float16')
+    scd = (scd*1e-15).astype('float16')
+
+    cf_fraction = _read_group_nc(fname,['support_data'],'cloud_fraction').astype('float16')
+    cf_fraction_mask = cf_fraction < 0.4
+    cf_fraction_mask =  np.multiply(cf_fraction_mask, 1.0).squeeze()
+
+    quality_flag = _read_group_nc(fname,['key_science_data'],'main_data_quality_flag').astype('float16')
+    #0: normal, 1:suspicious, 2:bad
+    quality_flag = quality_flag == 0.0
+    quality_flag = np.multiply(quality_flag,1.0).squeeze()
+    quality_flag = quality_flag*cf_fraction_mask
+
+    sur_pres = _read_group_nc(fname,['key_science_data'],'column_amount').astype('float16') #hpa
+    nc_f = fname
+    nc_fid = Dataset(nc_f,'r')
+    # there's some files not having surface pressure
+    eta_a = np.array([0., 0.04804826, 6.593752, 13.1348, 19.61311, 26.09201, 32.57081, 38.98201,
+        45.33901, 51.69611, 58.05321, 64.36264, 70.62198, 78.83422, 89.09992, 99.36521, 109.1817,
+        118.9586, 128.6959, 142.91, 156.26, 169.609, 181.619, 193.097, 203.259, 212.15, 218.776,
+        223.898, 224.363, 216.865, 201.192, 176.93, 150.393, 127.837, 108.663, 92.36572, 78.51231,
+        56.38791, 40.17541, 28.36781, 19.7916, 9.292942, 4.076571, 1.65079, 0.6167791, 0.211349, 0.06600001, 0.01])
+    eta_b = np.array([1., 0.984952, 0.963406, 0.941865, 0.920387, 0.898908, 0.877429, 0.856018, 
+        0.8346609, 0.8133039, 0.7919469, 0.7706375, 0.7493782, 0.721166, 0.6858999, 0.6506349, 
+        0.6158184, 0.5810415, 0.5463042, 0.4945902, 0.4437402, 0.3928911, 0.3433811, 0.2944031,
+        0.2467411, 0.2003501, 0.1562241, 0.1136021, 0.06372006, 0.02801004, 0.006960025, 8.175413e-09,
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+
+    #eta_a = getattr(nc_fid.groups['support_data'].variables['surface_pressure'],'eta_a').astype('float16')
+    #eta_b = getattr(nc_fid.groups['support_data'].variables['surface_pressure'],'eta_b').astype('float16')
+
+    p_bdy = np.zeros((np.shape(eta_a)[0],np.shape(sur_pres)[0],np.shape(sur_pres)[1])).astype('float16')
+    p_mid = np.zeros((47,np.shape(sur_pres)[0],np.shape(sur_pres)[1])).astype('float16')
+
+    for z in range(0,np.shape(eta_a)[0]):
+        p_bdy[z,:,:] = eta_a[z] + sur_pres*eta_b[z]
+    for z in range(0,47):
+        p_mid[z,:,:] = 0.5*(p_bdy[z,:,:] + p_bdy[z+1,:,:])
+
+    if read_ak == True:
+        SWs = _read_group_nc(fname,['support_data'],'scattering_weights').astype('float16')
+    else:
+        SWs = np.empty((1))
+
+    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) | (SWs > 100.0) | (SWs < 0.0))] = 0.0
+    uncertainty = _read_group_nc(fname,['key_science_data'],'column_uncertainty')
+    uncertainty = (uncertainty*1e-15).astype('float16')
+
+    omps_hcho = satellite_amf(vcd,scd,time,np.empty((1)),latitude_center,longitude_center,
+            [],[],uncertainty,quality_flag,p_mid,SWs,[],[],[],[],[])
+
+    if (ctm_models_coordinate is not None):
+        print('Currently interpolating ...')
+        grid_size = 0.5  # degree
+        omps_hcho = interpolator(
+                1, grid_size, omps_hcho, ctm_models_coordinate, flag_thresh=0.0)
+    # return
+    return omps_hcho
+
 
 def omi_reader(product_dir: str, satellite_product_name: str, ctm_models_coordinate: dict, YYYYMM: str, trop: bool, read_ak=True, num_job=1):
     '''
@@ -1021,6 +1121,10 @@ class readers(object):
             self.sat_data = ssmis_reader(self.satellite_product_dir.as_posix(),
                                          ctm_models_coordinate,
                                          YYYYMM, num_job=num_job)
+        elif satellite == 'OMPS':
+            self.sat_data = omps_reader(self.satellite_product_dir.as_posix(),
+                                       self.satellite_product_name, ctm_models_coordinate,
+                                       YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
@@ -1071,7 +1175,7 @@ class readers(object):
                 self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)
         if self.ctm_product == 'FREE':
             # Read the control file
-            with open('oisatgmi/control_free.yml', 'r') as stream:
+            with open('control_free.yml', 'r') as stream:
                 try:
                     ctrl_opts = yaml.safe_load(stream)
                 except yaml.YAMLError as exc:
