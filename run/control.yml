@@ -1,0 +1,51 @@
+# set your python executable path
+python_bin: '/discover/nobackup/asouri/miniconda3/bin/python3'
+
+# to run the job on debug queue
+debug: False
+
+# number of jobs
+num_job: 36
+
+# set the name of CTM model (GMI)
+ctm_name: 'GMI'
+
+# set the path of CTM netcdf files (either relative or absolute)
+ctm_dir: '../oisatgmi/download_bucket/gmi/'
+
+# the frequency of CTM files (3-hourly)
+ctm_freq: '3-hourly'
+
+# should we average CTMs? (reduce memory overhead by a lot)
+ctm_avg: True
+
+# error in the model VCD (%)
+ctm_error: 50.0
+
+# target gas (NO2, HCHO)
+gas: 'NO2'
+
+# the sensor name (OMI, TROPOMI)
+sensor: 'OMI'
+
+# consider scattering weights (or AKs) (memory intensive)
+read_AK: True
+
+# total column or tropospheric column (only applicable for NO2)
+troposphere_only: True
+
+# set the path of L2 files
+sat_dir: '../oisatgmi/download_bucket/omi_no2'
+
+# starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
+start_date: '2019-03'
+end_date:   '2019-06'
+
+# output folder for PDF reports
+output_pdf_dir: './report_test_reg'
+
+# output folder for NC diags
+output_nc_dir: './diag_test_reg'
+
+
+

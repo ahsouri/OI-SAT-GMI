@@ -42,6 +42,7 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on=
     else:
         knee_index = [0]
 
+    print("The regularization factor is " + str(scaling_factors[int(knee_index[0])]))
     kalman_gain = kalman_gain[int(knee_index[0])]
     averaging_kernel = averaging_kernel[int(knee_index[0])]
     Sb = Sb[int(knee_index[0])]
