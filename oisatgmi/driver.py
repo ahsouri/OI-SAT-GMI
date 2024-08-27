@@ -150,6 +150,33 @@ class oisatgmi(object):
 
         ncfile.close()
 
+    def savedaily(self, folder, gasname, date):
+        # extract sat data
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        latitude = self.reader_obj.sat_data[0].latitude_center
+        longitude = self.reader_obj.sat_data[0].longitude_center
+        vcd_sat = np.zeros((np.shape(latitude)[0], np.shape(
+            latitude)[1], len(self.reader_obj.sat_data)))
+        vcd_err = np.zeros_like(vcd_sat)
+        vcd_ctm = np.zeros_like(vcd_sat)
+        time_sat = np.zeros((len(self.reader_obj.sat_data)))
+        counter = -1
+        for sat in self.reader_obj.sat_data:
+            counter = counter + 1
+            if sat is None:
+                continue
+            vcd_sat[:, :, counter] = sat.vcd
+            vcd_ctm[:, :, counter] = sat.ctm_vcd
+            vcd_err[:, :, counter] = sat.uncertainty
+            time_sat[counter] = 10000.0*sat.time.year + 100.0 * \
+                sat.time.month + sat.time.day + sat.time.hour/24.0
+
+        sat = {"vcd_sat": vcd_sat, "vcd_ctm": vcd_ctm,
+               "vcd_err": vcd_err, "time_sat": time_sat, "lat": latitude, "lon": longitude}
+        savemat(folder + "/" + "sat_data_" +
+                gasname + "_" + date + ".mat", sat)
+
 
 # testing
 if __name__ == "__main__":
