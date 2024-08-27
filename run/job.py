@@ -16,7 +16,10 @@ ctm_freq = ctrl_opts['ctm_freq']
 ctm_avg = ctrl_opts['ctm_avg']
 gas = ctrl_opts['gas']
 sensor = ctrl_opts['sensor']
-read_AK = ctrl_opts['read_AK']
+if ctm_name == "FREE":
+    read_AK = "False"
+else:
+    read_AK = ctrl_opts['read_AK']
 troposphere_only = ctrl_opts['troposphere_only']
 sat_dir = ctrl_opts['sat_dir']
 output_pdf_dir = ctrl_opts['output_pdf_dir']
