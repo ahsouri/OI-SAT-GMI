@@ -16,13 +16,17 @@ ctm_freq = ctrl_opts['ctm_freq']
 ctm_avg = ctrl_opts['ctm_avg']
 gas = ctrl_opts['gas']
 sensor = ctrl_opts['sensor']
-read_AK = ctrl_opts['read_AK']
+if ctm_name == "FREE":
+    read_AK = "False"
+else:
+    read_AK = ctrl_opts['read_AK']
 troposphere_only = ctrl_opts['troposphere_only']
 sat_dir = ctrl_opts['sat_dir']
 output_pdf_dir = ctrl_opts['output_pdf_dir']
 output_nc_dir = ctrl_opts['output_nc_dir']
 num_job = ctrl_opts['num_job']
 error_ctm = ctrl_opts['ctm_error']
+save_daily = ctrl_opts['save_daily']
 
 year = int(sys.argv[1])
 month = int(sys.argv[2])
@@ -39,6 +43,11 @@ elif sensor == "SSMIS":
    oisatgmi_obj.cal_pwv()
 else:
    oisatgmi_obj.recal_amf()
+
+if save_daily:
+   oisatgmi_obj.savedaily(output_nc_dir, gas,
+                           str(year) + '_' + f"{month:02}")
+
 if month != 12:
     oisatgmi_obj.average(str(
         year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01', gasname=gas)
