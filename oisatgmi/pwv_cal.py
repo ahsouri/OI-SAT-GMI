@@ -85,7 +85,7 @@ def pwv_calculator(ctm_data: list, sat_data: list):
             size_grid_model_lon = np.abs(ctm_longitude[0, 0]-ctm_longitude[0, 1])
             size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
             gridsize_ctm = np.sqrt(size_grid_model_lon**2 + size_grid_model_lat**2)
-            for z in range(0, np.shape(ctm_mid_pressure)[0]):
+            for z in range(0, np.shape(ctm_profile)[0]):
                 _, _, ctm_partial_column_new[z, :, :], _ = _upscaler(ctm_data[0].longitude, ctm_data[0].latitude,
                                                                      ctm_partial_column[z, :, :], sat_coordinate, gridsize_ctm, threshold_sat, tri=tri)
             ctm_partial_column = ctm_partial_column_new

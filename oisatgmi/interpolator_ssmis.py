@@ -33,12 +33,11 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
     return ZZ
 
 
-def _boxfilter(size_kernel_x, size_kernel_y) -> np.array:
+def _boxfilter2(size_kernel_x, size_kernel_y) -> np.array:
 
-    return np.ones((int(size_kernel_x), int(size_kernel_y)))/(size_kernel_x*size_kernel_y)
+    return np.ones((int(size_kernel_x), int(size_kernel_y)))/(size_kernel_x*size_kernel_y)**2
 
-
-def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict, grid_size: float, threshold: float, tri=None):
+def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict, grid_size: float, threshold: float, tri=None, error=False):
     '''
         upscaler function
         Input:
@@ -54,17 +53,18 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
     size_grid_model_lon = np.abs(ctm_longitude[0, 0]-ctm_longitude[0, 1])
     size_grid_model_lat = np.abs(ctm_latitude[0, 0] - ctm_latitude[1, 0])
 
-    if (size_grid_model_lon > grid_size) or (size_grid_model_lat > grid_size):
+    if (size_grid_model_lon >= grid_size) or (size_grid_model_lat >= grid_size):
         # upscaling is needed
         size_kernel_x = np.floor(size_grid_model_lon/grid_size)
         size_kernel_y = np.floor(size_grid_model_lat/grid_size)
-        if size_kernel_x == 0 : size_kernel_x = 1
-        if size_kernel_y == 0 : size_kernel_y = 1
-        kernel = _boxfilter(size_kernel_y, size_kernel_x)
-        # TO DO, in case of large jumps from small pixels to large ones
-        # you may exagerate the NaN boxes which seems to be a problem for
-        # satelite observations like GOSAT having too many gaps so I need 
-        # to figure out a better solution for this later
+        if size_kernel_x == 0:
+            size_kernel_x = 1
+        if size_kernel_y == 0:
+            size_kernel_y = 1
+        if error: # which kernel should we use?
+            kernel = _boxfilter2(size_kernel_y, size_kernel_x)
+        else:
+            kernel = _boxfilter(size_kernel_y, size_kernel_x)
         Z = signal.convolve2d(Z, kernel, boundary='symm', mode='same')
         # define the triangulation
         points = np.zeros((np.size(X), 2))
@@ -89,8 +89,7 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         # upscaling is not needed but the model needs to match with sat
         upscaled_ctm_needed = True
         return X, Y, Z, upscaled_ctm_needed
-
-
+    
 def interpolator_ssmis(interpolator_type: int, grid_size: float, sat_data, ctm_models_coordinate: dict):
     '''
         The interpolator function
@@ -155,7 +154,7 @@ def interpolator_ssmis(interpolator_type: int, grid_size: float, sat_data, ctm_m
     print('....................... error')
     _, _, error, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.uncertainty, lons_grid, lats_grid, interpolator_type, dists, grid_size),
-        ctm_models_coordinate, grid_size, threshold_ctm)
+        ctm_models_coordinate, grid_size, threshold_ctm, error=True)
     
     latitude_center = upscaled_Y
     longitude_center = upscaled_X
