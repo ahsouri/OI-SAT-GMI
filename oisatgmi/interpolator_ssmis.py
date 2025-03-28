@@ -32,6 +32,9 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
             "other type of interpolation methods has not been implemented yet")
     return ZZ
 
+def _boxfilter(size_kernel_x, size_kernel_y) -> np.array:
+
+    return np.ones((int(size_kernel_x), int(size_kernel_y)))/(size_kernel_x*size_kernel_y)
 
 def _boxfilter2(size_kernel_x, size_kernel_y) -> np.array:
 
