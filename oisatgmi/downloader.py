@@ -9,7 +9,7 @@ import requests
 import datetime
 import requests
 from bs4 import BeautifulSoup
-
+import earthaccess
 
 def _charconv1(char):
     return("'{}'".format(char))
@@ -215,7 +215,106 @@ class downloader(object):
                           result.status_code)
             else:
                 continue
-            
+
+    def download_tempo_L2(self, product_tag: str, output_fld: Path, product_name=None, username=None, password=None):
+        '''
+            download the TEMPO L2 data from Earthaccess
+            Inputs:
+                product_tag [str]: NO2
+                                   HCHO
+                output_fld [Path]: a pathlib object describing the output folder
+                product_name [str] (optional): a product name to overwrite product_tag default values
+                username [str] (optional): the username to log on nasa gesdisc
+                password [str] (optional): the password to log on nasa gesdisc
+        '''
+        # this is based on the instruction presented at NASA GES DISC
+        # if username and password are set:
+        if (username is not None) and (password is not None):
+            cmd = "touch ~/.netrc"
+            os.system(cmd)
+            cmd = "echo " + '"' + "machine urs.earthdata.nasa.gov login " + username + " password " +\
+                password + '"' + " >> ~/.netrc"
+            os.system(cmd)
+            cmd = "chmod 0600 ~/.netrc"
+            os.system(cmd)
+            cmd = "touch ~/.urs_cookies"
+            os.system(cmd)
+
+        if product_tag == 'NO2':
+           short_name = 'TEMPO_NO2_L2' # collection name to search for in the EarthData
+        elif product_tag == 'HCHO':
+           short_name = 'TEMPO_HCHO_L2'
+        if product_name:
+           short_name = product_name
+
+        version = 'V03'
+        auth = earthaccess.login()
+
+        POI_lat = self.latll
+        POI_lon = self.lonll
+        date_start = self.datestart + ' 00:00:00'
+        date_end = self.dateend + ' 23:59:59'
+        dlon = self.lonur - POI_lon # deg
+        dlat = self.latur - POI_lat # deg
+        bbox_results = earthaccess.search_data(short_name = short_name\
+                                     , version = version\
+                                     , temporal = (date_start, date_end)\
+                                     , bounding_box = (POI_lon, POI_lat, POI_lon + dlon, POI_lat + dlat))
+        for r in bbox_results:
+            granule_name = r.data_links()[0].split('/')[-1]
+            print(granule_name)
+            files = earthaccess.download(r, local_path=output_fld)
+
+
+    def download_tempo_L3(self, product_tag: str, output_fld: Path, product_name=None, username=None, password=None):
+        '''
+            download the TEMPO L3 data from Earthaccess
+            Inputs:
+                product_tag [str]: NO2
+                                   HCHO
+                output_fld [Path]: a pathlib object describing the output folder
+                product_name [str] (optional): a product name to overwrite product_tag default values
+                username [str] (optional): the username to log on nasa gesdisc
+                password [str] (optional): the password to log on nasa gesdisc
+        '''
+        # this is based on the instruction presented at NASA GES DISC
+        # if username and password are set:
+        if (username is not None) and (password is not None):
+            cmd = "touch ~/.netrc"
+            os.system(cmd)
+            cmd = "echo " + '"' + "machine urs.earthdata.nasa.gov login " + username + " password " +\
+                password + '"' + " >> ~/.netrc"
+            os.system(cmd)
+            cmd = "chmod 0600 ~/.netrc"
+            os.system(cmd)
+            cmd = "touch ~/.urs_cookies"
+            os.system(cmd)
+
+        if product_tag == 'NO2':
+           short_name = 'TEMPO_NO2_L3' # collection name to search for in the EarthData
+        elif product_tag == 'HCHO':
+           short_name = 'TEMPO_HCHO_L3'
+        if product_name:
+           short_name = product_name
+
+        version = 'V03'
+        auth = earthaccess.login()
+
+        POI_lat = self.latll
+        POI_lon = self.lonll
+        date_start = self.datestart + ' 00:00:00'
+        date_end = self.dateend + ' 23:59:59'
+        dlon = self.lonur - POI_lon # deg
+        dlat = self.latur - POI_lat # deg
+        bbox_results = earthaccess.search_data(short_name = short_name\
+                                     , version = version\
+                                     , temporal = (date_start, date_end)\
+                                     , bounding_box = (POI_lon, POI_lat, POI_lon + dlon, POI_lat + dlat)) # search by bounding box
+        for r in bbox_results:
+            granule_name = r.data_links()[0].split('/')[-1]
+            print(granule_name)
+            files = earthaccess.download(r, local_path=output_fld)
+
     def download_omi_l2(self, product_tag: str, output_fld: Path, product_name=None, username=None, password=None):
         '''
             download the omi data
@@ -291,8 +390,6 @@ class downloader(object):
                     urls = result.text.split('\n')
                     for url in urls:
                         cmd = "wget -nH -nc --no-check-certificate "
-                        if product_tag != 'O3':
-                            cmd += "--content-disposition "
                         cmd += "--continue --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --auth-no-challenge=on "
                         cmd += "--keep-session-cookies "
                         cmd += '"' + str(url)[:-1] + '"'
@@ -492,12 +589,13 @@ class downloader(object):
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(19, 61, -136, -54, '2019-05-01', '2019-05-02')
+    dl_obj = downloader(40, 45, -95, -90, '2024-01-01', '2024-01-02')
     #dl_obj = downloader(-90, 90, -180, 180, '2005-06-01', '2005-07-01')
     #dl_obj.download_tropomi_l2('HCHO', Path('download_bucket/trop_hcho/'))
-    #dl_obj.download_omi_l2('HCHO', Path('download_bucket/omi_no2/'))
+    dl_obj.download_tempo_L2('NO2',Path('download_bucket/tempo_no2_l2/'))
+    #dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_no2/'))
     #dl_obj.omi_hcho_cfa( Path('download_bucket/omi_hcho_PO3/'))
     #dl_obj.download_omi_l2('O3', Path('download_bucket/omi_o3/'))
     #dl_obj.download_mopitt_l2(Path('download_bucket/mopitt_CO/'))
     # dl_obj.merra2_gmi(Path('download_bucket/gmi/'))
-    dl_obj.download_ssmis('HCHO', Path('download_bucket/ssmi/'))
+    #dl_obj.download_ssmis('HCHO', Path('download_bucket/ssmi/'))
