@@ -17,4 +17,5 @@ requests==2.28.1
 scipy==1.11.2
 setuptools==63.4.1
 urllib3==1.26.11
+earthaccess==0.14.0
 h5py
