@@ -22,7 +22,7 @@ def _read_nc(filename, var):
     return np.squeeze(out)
 
 
-def _savetonc(fname, folder, timetag, lat, lon, Z1, Z2):
+def _savetonc(fname, folder, timetag, lat, lon, Z1, Z2, emis):
     print("Now saving " + fname)
     time_diag = timetag
     # write to the new scheme
@@ -51,12 +51,22 @@ def _savetonc(fname, folder, timetag, lat, lon, Z1, Z2):
     longitudes.long_name = "longitude"
 
     emis_ff_data = ext_data.createVariable(
-        "emis_ff", "f8", ("time", "lat", "lon",))
-    emis_ff_data.units = "fraction"
+        "emis_ff", "f8", ("time", "lat", "lon",),fill_value=1e15)
+    emis_ff_data.long_name = f"{emis} from fossil fuel" ;
+    emis_ff_data.units = "kg m^(-2) s^(-1)" ;
+    emis_ff_data.missing_value = np.float32(1e15) ;
+    emis_ff_data.fmissing_value = np.float32(1e15) ;
+    emis_ff_data.vmin = np.float32(1e15) ;
+    emis_ff_data.vmax = np.float32(1e15) ;
 
     emis_bf_data = ext_data.createVariable(
-        "emis_bf", "f8", ("time", "lat", "lon",))
-    emis_bf_data.units = "fraction"
+        "emis_bf", "f8", ("time", "lat", "lon",),fill_value=1e15 )
+    emis_bf_data.long_name = f"{emis} from biofuel" ;
+    emis_bf_data.units = "kg m^(-2) s^(-1)" ;
+    emis_bf_data.missing_value = np.float32(1e15) ;
+    emis_bf_data.fmissing_value = np.float32(1e15) ;
+    emis_bf_data.vmin = np.float32(1e15) ;
+    emis_bf_data.vmax = np.float32(1e15) ;
 
     times[:] = np.arange(0, 60 * 24, 60)  # 24 hours, 60 minutes intervals
     latitudes[:] = lat.squeeze()
@@ -84,20 +94,36 @@ for date_i in _daterange(datetime.date(2023, 1, 1), datetime.date(2023, 2, 1)):
     counter = 0
     for emis in emission_names_GMI:
         emis_to_saved_ff = np.zeros((24, 1800, 3600))
+        emis_to_saved_bf = np.zeros((24, 1800, 3600))
         # pick the CCMI (the easiest)
         if emis == "NO":
             CCMI_file = "/discover/nobackup/projects/gmao/merra2_gmi/work/ExtData/CCMI_0.1_OS/CCMI_emis01_OS_" +\
-                emis + str(date_i.year) + "t12.nc4"
+                emis + "_" +  str(date_i.year) + "_t12.nc4"
         else:
             CCMI_file = "/discover/nobackup/projects/gmao/merra2_gmi/work/ExtData/CCMI_0.1/CCMI_emis01_" +\
-                emis + str(date_i.year) + "t12.nc4"
-        print("Reading CCMI file " + CCMI_file)
+                emis + "_" + str(date_i.year) + "_t12.nc4"
+        print(f"Reading the {emis} from: " + CCMI_file)
         lat_org_compressed = _read_nc(CCMI_file, 'lat')
         lon_org_compressed = _read_nc(CCMI_file, 'lon')
         lon_org, lat_org = np.meshgrid(lon_org_compressed, lat_org_compressed)
         # global anthro emissions are monthly
-        emis_ff = _read_nc(CCMI_file, f"{emis}_ff")
-        emis_bf = _read_nc(CCMI_file, f"{emis}_bf")
+        try:
+           emis_ff = _read_nc(CCMI_file, f"{emis}_ff")
+           emis_ff = emis_ff[int(date_i.month)-1,:,:].squeeze()
+           emis_ff_exist = True
+        except:
+           print("there is no ff in this file, zeroing")
+           emis_ff_exist = False
+           emis_ff = np.zeros((1800, 3600))
+        try:
+           emis_bf = _read_nc(CCMI_file, f"{emis}_bf")
+           emis_bf = emis_bf[int(date_i.month)-1,:,:].squeeze()
+           emis_bf_exist = True
+        except:
+           print("there is no bf in this file, zeroing")
+           emis_bf = np.zeros((1800, 3600))
+           emis_bf_exist = False
+
         # pick the soil NOx emission only if emis == NO
         soilNOx_01 = np.zeros((24, 1800, 3600))
         if emis == "NO":
@@ -105,7 +131,7 @@ for date_i in _daterange(datetime.date(2023, 1, 1), datetime.date(2023, 2, 1)):
             soilNOx_file = "/discover/nobackup/asouri/SHARED/SOIL_NOX/soilnox_" + str(date_i.year) + "/" +\
                 f"{date_i.month:02d}" + "/" + "soilnox_025." + \
                 f"{date_i.year}{date_i.month:02d}{date_i.day:02d}.nc"
-            print("Reading Soil file " + soilNOx_file)
+            print("Reading the soil file from " + soilNOx_file)
             lat_soil = _read_nc(soilNOx_file, 'lat')
             lon_soil = _read_nc(soilNOx_file, 'lon')
             lon_soil, lat_soil = np.meshgrid(lon_soil, lat_soil)
@@ -121,9 +147,9 @@ for date_i in _daterange(datetime.date(2023, 1, 1), datetime.date(2023, 2, 1)):
                 soilNOx_01[hour, :, :] = interpolator((lon_org, lat_org))
 
         # NEI2016
-        NEI_file = "/discover/nobackup/asouri/SHARED/NEI_2016/nei2016_monthly/2016fg_16j_merge_0pt1degree_month_" +\
-            f"{date_i.month:02d}" + ".nc4"
-        print("Reading NEI file " + NEI_file)
+        NEI_file = "/discover/nobackup/asouri/SHARED/NEI_2016/nei2016_monthly/2016fh_16j_merge_0pt1degree_month_" +\
+            f"{date_i.month:02d}" + ".ncf"
+        print("Reading NEI file from " + NEI_file)
         if corrs_NEI_emis[counter] == "NO":
             NEI_emis = _read_nc(NEI_file, 'NO')*(30.0/46.0) + \
                 _read_nc(NEI_file, 'NO2')
@@ -139,16 +165,21 @@ for date_i in _daterange(datetime.date(2023, 1, 1), datetime.date(2023, 2, 1)):
         interpolator = NearestNDInterpolator(tri, (NEI_emis[:, :]).flatten())
         NEI_emis_mapped = interpolator((lon_org, lat_org))
         # remove data outside of lon_NEI and lat_NEI max and mins
-        inside_box = (lat_org >= np.min(lat_NEI.flatten()) & (lat_org <= np.max(lat_NEI.flatten())) &
-                      (lon_org >= np.min(lon_NEI.flatten())) & (lon_org <= np.max(lon_NEI.flatten())))
+        inside_box = (
+                     (lat_org >= np.min(lat_NEI.flatten())) &
+                     (lat_org <= np.max(lat_NEI.flatten())) &
+                     (lon_org >= np.min(lon_NEI.flatten())) &
+                     (lon_org <= np.max(lon_NEI.flatten()))
+                     )
         # apply mask to NOx data: keep values inside the box, zero out others
-        NEI_emis_mapped = np.where(inside_box, NEI_emis_mapped, 0)
+        NEI_emis_mapped = np.where(inside_box, NEI_emis_mapped, 0.0)
         # zero inside the CCMI ff
-        emis_ff = np.where(~inside_box, emis_ff, 0)
+        emis_ff = np.where(~inside_box, emis_ff, 0.0)
+        emis_bf = np.where(~inside_box, emis_bf, 0.0)
         # apply the diurnal factor
-        diurnal_scale_file = "/discover/nobackup/asouri/SHARED/NEI_2016/dirunal_scales/Scales_2016" +\
+        diurnal_scale_file = "/discover/nobackup/asouri/SHARED/NEI_2016/diurnal_scales/Scales_2016" +\
             f"{date_i.month:02d}.mat"
-        print("Reading scaling factor file " + diurnal_scale_file)
+        print("Reading the scaling factor file from " + diurnal_scale_file)
         diurnal_scales = loadmat(diurnal_scale_file)
         # Check if it's a weekend
         if date_i.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
@@ -156,9 +187,9 @@ for date_i in _daterange(datetime.date(2023, 1, 1), datetime.date(2023, 2, 1)):
         else:
             diurnal_scales = diurnal_scales[f"{corrs_NEI_emis[counter]}_weekday"]
         lat_scale = _read_nc(
-            "/discover/nobackup/asouri/SHARED/NEI_2016/dirunal_scales/GRIDCRO2D_20190201.nc4", 'LAT')
+            "/discover/nobackup/asouri/SHARED/NEI_2016/diurnal_scales/GRIDCRO2D_20190201.nc4", 'LAT')
         lon_scale = _read_nc(
-            "/discover/nobackup/asouri/SHARED/NEI_2016/dirunal_scales/GRIDCRO2D_20190201.nc4", 'LON')
+            "/discover/nobackup/asouri/SHARED/NEI_2016/diurnal_scales/GRIDCRO2D_20190201.nc4", 'LON')
         points = np.zeros((np.size(lat_scale), 2))
         points[:, 0] = lon_scale.flatten()
         points[:, 1] = lat_scale.flatten()
@@ -168,15 +199,31 @@ for date_i in _daterange(datetime.date(2023, 1, 1), datetime.date(2023, 2, 1)):
                 tri, (diurnal_scales[hour, :, :]).flatten())
             diurnal_scales_mapped = interpolator((lon_org, lat_org))
             # make the dirunal scales = 1.0 outside of the domain
-            inside_box = (lat_org >= np.min(lat_scale.flatten()) & (lat_org <= np.max(lat_scale.flatten())) &
-                          (lon_org >= np.min(lon_scale.flatten())) & (lon_org <= np.max(lon_scale.flatten())))
+            inside_box = (
+                     (lat_org >= np.min(lat_scale.flatten())) &
+                     (lat_org <= np.max(lat_scale.flatten())) &
+                     (lon_org >= np.min(lon_scale.flatten())) &
+                     (lon_org <= np.max(lon_scale.flatten()))
+                     )
             # apply the mask
             diurnal_scales_mapped = np.where(
                 inside_box, diurnal_scales_mapped, 1.0)
             # we are summing everything, note that soilNOx is always zero unless NO is used
-            emis_to_saved_ff[hour, :, :] = diurnal_scales_mapped * \
-                NEI_emis_mapped+soilNOx_01+emis_ff
-            # saving the output
-            _savetonc("./test.nc", "", date_i, lat_org_compressed,
-                      lon_org_compressed, emis_ff, emis_bf)
+            # soil nox won't be applied to biofuels for NO (it will be applied to ff)
+            if ((emis_ff_exist) and (~emis_bf_exist)): # here if only populate ff based on soil+CCMI+NEI
+               emis_to_saved_ff[hour, :, :] = diurnal_scales_mapped * \
+                    NEI_emis_mapped+soilNOx_01[hour, :, :]+emis_ff
+               emis_to_saved_bf[hour, :, :] = 0.0
+            if ((~emis_ff_exist) and (emis_bf_exist)): # here if only populate bf based on CCMI+NEI
+               emis_to_saved_ff[hour, :, :] = 0.0
+               emis_to_saved_bf[hour, :, :] = diurnal_scales_mapped * \
+                    NEI_emis_mapped+emis_bf
+            if ((emis_ff_exist) and (emis_bf_exist)): # we populate both, but we only apply NEI-2011 once
+               emis_to_saved_ff[hour, :, :] = diurnal_scales_mapped * \
+                    NEI_emis_mapped+soilNOx_01[hour, :, :]+emis_ff
+               emis_to_saved_bf[hour, :, :] = emis_bf
+        # saving the output
+        # consider that we never change emis_bf, but we need to repeat it 24 times for consistency
+        _savetonc(f"./CCMI_SOIL_NEI2016_{emis}_{date_i.year}{date_i.month:02d}{date_i.day:02d}.nc", "", date_i, lat_org_compressed,
+                      lon_org_compressed, emis_to_saved_ff, emis_to_saved_bf,emis)
         counter = counter + 1
