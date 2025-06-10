@@ -81,6 +81,7 @@ def amf_recal(ctm_data: list, sat_data: list):
             ctm_partial_column = ctm_deltap*ctm_profile/g/Mair*N_A*1e-4*1e-15*100.0*1e-9
         # see if we need to upscale the ctm fields
         if L2_granule.ctm_upscaled_needed == True:
+            print("Upscaling of the model is needed.")
             ctm_mid_pressure_new = np.zeros((np.shape(ctm_mid_pressure)[0],
                                              np.shape(L2_granule.longitude_center)[0], np.shape(
                                                  L2_granule.longitude_center)[1],

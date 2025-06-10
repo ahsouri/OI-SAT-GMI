@@ -478,76 +478,79 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
        Output:
              tropomi_hcho [satellite_amf]: a dataclass format (see config.py)
     '''
-    # hcho reader
-    print("Currently reading: " + fname.split('/')[-1])
-    # read time
-    time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
-        np.nanmean(np.array(_read_group_nc(
-            fname, ['PRODUCT'], 'delta_time')), axis=1)/1000.0
-    time = np.nanmean(time, axis=0)
-    time = np.squeeze(time)
-    time = datetime.datetime(
-        2010, 1, 1) + datetime.timedelta(seconds=int(time))
-    #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at centers
-    latitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'latitude').astype('float32')
-    longitude_center = _read_group_nc(
-        fname, ['PRODUCT'], 'longitude').astype('float32')
-    # read total amf
-    amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
+    try:
+       # hcho reader
+        print("Currently reading: " + fname.split('/')[-1])
+        # read time
+        time = _read_group_nc(fname, ['PRODUCT'], 'time') +\
+            np.nanmean(np.array(_read_group_nc(
+                fname, ['PRODUCT'], 'delta_time')), axis=1)/1000.0
+        time = np.nanmean(time, axis=0)
+        time = np.squeeze(time)
+        time = datetime.datetime(
+            2010, 1, 1) + datetime.timedelta(seconds=int(time))
+        #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
+        # read lat/lon at centers
+        latitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'latitude').astype('float32')
+        longitude_center = _read_group_nc(
+            fname, ['PRODUCT'], 'longitude').astype('float32')
+        # read total amf
+        amf_total = _read_group_nc(fname, ['PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'],
                                'formaldehyde_tropospheric_air_mass_factor')
-    # read total hcho
-    vcd = _read_group_nc(fname, ['PRODUCT'],
+        # read total hcho
+        vcd = _read_group_nc(fname, ['PRODUCT'],
                          'formaldehyde_tropospheric_vertical_column')
-    # unit conversion
-    vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
-    # bias correction based on Souri et al. 2025
-    vcd = (vcd-0.9)/0.59
-    scd = ((vcd-0.9)/0.59)*amf_total
-    # read quality flag
-    quality_flag = _read_group_nc(
-        fname, ['PRODUCT'], 'qa_value').astype('float16')
-    # read pressures for SWs
-    tm5_a = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_a')/100.0
-    tm5_b = _read_group_nc(
-        fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_b')
-    ps = _read_group_nc(fname, [
-                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float16')/100.0
-    p_mid = np.zeros(
-        (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
-    if read_ak == True:
-        SWs = np.zeros(
-            (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
-        AKs = _read_group_nc(fname, [
-            'PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'averaging_kernel').astype('float16')
-    else:
-        SWs = np.empty((1))
-    # for some reason, in the HCHO product, a and b values are the center instead of the edges (unlike NO2)
-    for z in range(0, 34):
-        p_mid[z, :, :] = (tm5_a[z]+tm5_b[z]*ps[:, :])
+        # unit conversion
+        vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
+        # bias correction based on Souri et al. 2025
+        vcd = (vcd-0.9)/0.59
+        scd = ((vcd-0.9)/0.59)*amf_total
+        # read quality flag
+        quality_flag = _read_group_nc(
+            fname, ['PRODUCT'], 'qa_value').astype('float16')
+        # read pressures for SWs
+        tm5_a = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_a')/100.0
+        tm5_b = _read_group_nc(
+            fname, ['PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'tm5_constant_b')
+        ps = _read_group_nc(fname, [
+                        'PRODUCT', 'SUPPORT_DATA', 'INPUT_DATA'], 'surface_pressure').astype('float32')/100.0
+        p_mid = np.zeros(
+            (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
         if read_ak == True:
-            SWs[z, :, :] = AKs[:, :, z]*amf_total
-    # remove bad SWs
-    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+            SWs = np.zeros(
+                (34, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float16')
+            AKs = _read_group_nc(fname, [
+                'PRODUCT', 'SUPPORT_DATA', 'DETAILED_RESULTS'], 'averaging_kernel').astype('float16')
+        else:
+            SWs = np.empty((1))
+        # for some reason, in the HCHO product, a and b values are the center instead of the edges (unlike NO2)
+        for z in range(0, 34):
+            p_mid[z, :, :] = (tm5_a[z]+tm5_b[z]*ps[:, :])
+            if read_ak == True:
+                SWs[z, :, :] = AKs[:, :, z]*amf_total
+        # remove bad SWs
+        SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
                  (SWs > 100.0) | (SWs < 0.0))] = 0.0
-    # read the precision
-    uncertainty = _read_group_nc(fname, ['PRODUCT'],
+        # read the precision
+        uncertainty = _read_group_nc(fname, ['PRODUCT'],
                                  'formaldehyde_tropospheric_vertical_column_precision')
-    uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
+        uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
 
-    tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
+        tropomi_hcho = satellite_amf(vcd, scd, time, np.empty((1)), latitude_center, longitude_center,
                                 [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
-    # interpolation
-    if (ctm_models_coordinate is not None):
-        print('Currently interpolating ...')
-        grid_size = 0.10  # degree
-        tropomi_hcho = interpolator(
-            1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
-    # return
-    return tropomi_hcho
-
+        # interpolation
+        if (ctm_models_coordinate is not None):
+            print('Currently interpolating ...')
+            grid_size = 0.10  # degree
+            tropomi_hcho = interpolator(
+                1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
+        # return
+        return tropomi_hcho
+    except Exception as e:
+        print(f"Error processing {fname}: {e}")
+        return None
 
 def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
@@ -1454,7 +1457,7 @@ class readers(object):
                 ctm_data = []
         if self.ctm_product == 'HiGMI':
             ctm_data = Hi_GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas,
-                                  frequency_opt=frequency_opt, num_job=num_job)
+                                  frequency_opt=frequency_opt, num_job=1)
             if averaged == True:
                 # constant variables
                 print("Averaging CTM files ...")
@@ -1515,13 +1518,13 @@ class readers(object):
 # testing
 if __name__ == "__main__":
     reader_obj = readers()
-    reader_obj.add_ctm_data('FREE', Path('download_bucket/gmi/'))
+    reader_obj.add_ctm_data('HiGMI', Path('./higmi/'))
     reader_obj.read_ctm_data(
-        '201010', 'H2O', frequency_opt='3-hourly', averaged=True)
+        '202301', 'HCHO', frequency_opt='hourly', averaged=True)
     reader_obj.add_satellite_data(
-        'SSMIS', Path('/media/asouri/Amir_5TB/NASA/SSMIS/'))
+        'TROPOMI_HCHO', Path('./download_bucket/trop_hcho_subset/'))
     reader_obj.read_satellite_data(
-        '201010', read_ak=True, num_job=1)
+        '202301', read_ak=True, num_job=1)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
@@ -1534,10 +1537,12 @@ if __name__ == "__main__":
         if trop is None:
             continue
         output[:, :, counter] = trop.vcd
+        print(trop.vcd)
+    print(reader_obj.ctm_data[0].gas_profile)
 
     #output[output <= 0.0] = np.nan
     moutput = {}
     moutput["vcds"] = output
     moutput["lat"] = latitude
     moutput["lon"] = longitude
-    savemat("ssmis.mat", moutput)
+    savemat("vcd.mat", moutput)

@@ -182,12 +182,15 @@ class oisatgmi(object):
 if __name__ == "__main__":
 
     oisatgmi_obj = oisatgmi()
-    oisatgmi_obj.read_data('FREE', Path('/home/asouri/git_repos/mule/eccoh_sample'), 'NO2', 'monthly', 'OMI_NO2',
-                           Path('download_bucket/omi_no2/'), '201803',
-                           averaged=True, read_ak=False, trop=True, num_job=1)
+    oisatgmi_obj.read_data('HiGMI', Path('./higmi/'), 'HCHO', 'hourly', 'TROPOMI_HCHO',
+                           Path('download_bucket/trop_hcho_subset/'), '202301',
+                           averaged=True, read_ak=True, trop=True, num_job=1)
     oisatgmi_obj.recal_amf()
     #oisatgmi_obj.conv_ak()
-    oisatgmi_obj.average('2018-03-01', '2018-04-01')
-    oisatgmi_obj.oi(error_ctm=10.0)
-    oisatgmi_obj.reporting('NO2_200503_new', 'NO2', folder='report')
-    oisatgmi_obj.write_to_nc('NO2_200503_new', 'diag')
+    oisatgmi_obj.average('2023-01-01', '2023-02-01')
+    print(oisatgmi_obj.sat_averaged_vcd)
+    print(oisatgmi_obj.sat_averaged_error)
+    print(oisatgmi_obj.ctm_averaged_vcd)
+    oisatgmi_obj.oi('TROPOMI',error_ctm=10.0)
+    oisatgmi_obj.reporting('HCHO_202301_new', 'HCHO', folder='report')
+    oisatgmi_obj.write_to_nc('HCHO_202301_new', 'diag')

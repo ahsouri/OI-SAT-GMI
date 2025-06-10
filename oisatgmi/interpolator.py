@@ -63,6 +63,9 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
             size_kernel_x = 1
         if size_kernel_y == 0:
             size_kernel_y = 1
+        if ((size_kernel_x==1) and (size_kernel_y==1)):
+           # upscaling can't be done because it's within the subgrid
+           return ctm_longitude, ctm_latitude, Z, upscaled_ctm_needed
         if error: # which kernel should we use?
             kernel = _boxfilter2(size_kernel_y, size_kernel_x)
         else:
