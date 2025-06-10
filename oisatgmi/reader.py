@@ -500,10 +500,11 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
     # read total hcho
     vcd = _read_group_nc(fname, ['PRODUCT'],
                          'formaldehyde_tropospheric_vertical_column')
-    scd = _read_group_nc(fname, ['PRODUCT'], 'formaldehyde_tropospheric_vertical_column') *\
-        amf_total
+    # unit conversion
     vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
-    scd = (scd*6.02214*1e19*1e-15).astype('float16')
+    # bias correction based on Souri et al. 2025
+    vcd = (vcd-0.9)/0.59
+    scd = ((vcd-0.9)/0.59)*amf_total
     # read quality flag
     quality_flag = _read_group_nc(
         fname, ['PRODUCT'], 'qa_value').astype('float16')
@@ -595,6 +596,12 @@ def tropomi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_
                                      'nitrogendioxide_tropospheric_column_precision')
     vcd = (vcd*6.02214*1e19*1e-15).astype('float16')
     scd = (scd*6.02214*1e19*1e-15).astype('float16')
+    if trop == True:
+        # bias correction (Souri et al., 2024, ACP)
+        vcd = (vcd-0.32)/0.66
+        scd = ((vcd-0.32)/0.66)*_read_group_nc(
+            fname, ['PRODUCT'], 'air_mass_factor_troposphere')
+
     uncertainty = (uncertainty*6.02214*1e19*1e-15).astype('float16')
     # read quality flag
     quality_flag = _read_group_nc(

@@ -95,6 +95,11 @@ def merger(emis, corrs_NEI_emis, date_i):
     if emis == "NO":
         CCMI_file = "/discover/nobackup/projects/gmao/merra2_gmi/work/ExtData/CCMI_0.1_OS/CCMI_emis01_OS_" +\
             emis + "_" + str(date_i.year) + "_t12.nc4"
+        # read NO ship emissions
+        CCMI_ship_file = "/discover/nobackup/projects/gmao/merra2_gmi/work/ExtData/CCMI_0.1/CCMI_emis01_" +\
+            emis + "_shp_" + str(date_i.year) + "_t12.nc4"
+        ship_emissons =  _read_nc(CCMI_ship_file,'NO_shp')
+        ship_emissons = ship_emissons[int(date_i.month)-1, :, :].squeeze()
     else:
         CCMI_file = "/discover/nobackup/projects/gmao/merra2_gmi/work/ExtData/CCMI_0.1/CCMI_emis01_" +\
             emis + "_" + str(date_i.year) + "_t12.nc4"
@@ -170,8 +175,13 @@ def merger(emis, corrs_NEI_emis, date_i):
     # apply mask to NOx data: keep values inside the box, zero out others
     NEI_emis_mapped = np.where(inside_box, NEI_emis_mapped, 0.0)
     # zero inside the CCMI ff
-    emis_ff = np.where(~inside_box, emis_ff, 0.0)
-    emis_bf = np.where(~inside_box, emis_bf, 0.0)
+    emis_ff_masked = np.where(~inside_box, emis_ff, 0.0)
+    emis_bf_masked = np.where(~inside_box, emis_bf, 0.0)
+    if emis ==  'NO':
+       ship_emissons_masked = np.where(~inside_box, ship_emissons, 0.0)
+    else:
+       ship_emissons_masked = np.zeros_like(emis_bf)
+       ship_emissons = np.zeros_like(emis_bf)
     # apply the diurnal factor
     diurnal_scale_file = "/discover/nobackup/asouri/SHARED/NEI_2016/diurnal_scales/Scales_2016" +\
         f"{date_i.month:02d}.mat"
@@ -179,9 +189,9 @@ def merger(emis, corrs_NEI_emis, date_i):
     diurnal_scales = loadmat(diurnal_scale_file)
     # Check if it's a weekend
     if date_i.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
-        diurnal_scales = diurnal_scales[f"{corrs_NEI_emis[counter]}_weekend"]
+        diurnal_scales = diurnal_scales[f"{corrs_NEI_emis}_weekend"]
     else:
-        diurnal_scales = diurnal_scales[f"{corrs_NEI_emis[counter]}_weekday"]
+        diurnal_scales = diurnal_scales[f"{corrs_NEI_emis}_weekday"]
     lat_scale = _read_nc(
         "/discover/nobackup/asouri/SHARED/NEI_2016/diurnal_scales/GRIDCRO2D_20190201.nc4", 'LAT')
     lon_scale = _read_nc(
@@ -209,30 +219,38 @@ def merger(emis, corrs_NEI_emis, date_i):
         # here if only populate ff based on soil+CCMI+NEI
         if ((emis_ff_exist) and (not emis_bf_exist)):
             emis_to_saved_ff[hour, :, :] = diurnal_scales_mapped * \
-                NEI_emis_mapped+soilNOx_01[hour, :, :]+emis_ff
+                NEI_emis_mapped+soilNOx_01[hour, :, :]+emis_ff_masked+ship_emissons_masked
             emis_to_saved_bf[hour, :, :] = 0.0
         # here if only populate bf based on CCMI+NEI
         if ((not emis_ff_exist) and (emis_bf_exist)):
             emis_to_saved_ff[hour, :, :] = 0.0
             emis_to_saved_bf[hour, :, :] = diurnal_scales_mapped * \
-                NEI_emis_mapped+emis_bf
+                NEI_emis_mapped+emis_bf_masked
         # we populate both, but we only apply NEI-2011 once
         if ((emis_ff_exist) and (emis_bf_exist)):
             emis_to_saved_ff[hour, :, :] = diurnal_scales_mapped * \
-                NEI_emis_mapped+soilNOx_01[hour, :, :]+emis_ff
-            emis_to_saved_bf[hour, :, :] = emis_bf
+                NEI_emis_mapped+soilNOx_01[hour, :, :]+emis_ff_masked+ship_emissons_masked
+            emis_to_saved_bf[hour, :, :] = emis_bf_masked
+    # last touch to add non zeros
+    mask = emis_to_saved_ff == 0
+    emis_to_saved_ff[mask] = np.broadcast_to(emis_ff, emis_to_saved_ff.shape)[mask]
+    mask = emis_to_saved_ff == 0
+    emis_to_saved_ff[mask] = np.broadcast_to(ship_emissons, emis_to_saved_ff.shape)[mask]
+    mask = emis_to_saved_bf == 0
+    emis_to_saved_bf[mask] = np.broadcast_to(emis_bf, emis_to_saved_bf.shape)[mask]
     # saving the output
     _savetonc(f"./CCMI_SOIL_NEI2016_{emis}_{date_i.year}{date_i.month:02d}{date_i.day:02d}.nc", "", date_i, lat_org_compressed,
               lon_org_compressed, emis_to_saved_ff, emis_to_saved_bf, emis)
     return None
 
 if __name__ == "__main__":
+
     emission_names_GMI = ["ALD2", "ALK4", "C2H6",
                       "PRPE", "C3H8", "CH2O", "MEK", "CO", "NO"]
-    corrs_NEI_emis = ["ALD2", "PAR", "ETHA",
+    corrs_NEI_emis_list = ["ALD2", "PAR", "ETHA",
                   "IOLE", "PRPA", "FORM", "KET", "CO", "NO"]
 
     # loop over whole days ranging from 2023 till the end of 2024
     for date_i in _daterange(datetime.date(2023, 1, 1), datetime.date(2023, 2, 1)):
         out = Parallel(n_jobs=12)(delayed(merger)(
-           emission_names_GMI[k], corrs_NEI_emis[k], date_i) for k in range(len(emission_names_GMI)))
+           emission_names_GMI[k], corrs_NEI_emis_list[k], date_i) for k in range(len(emission_names_GMI)))
