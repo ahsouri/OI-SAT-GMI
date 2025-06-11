@@ -54,6 +54,7 @@ if month != 12:
 else:
     oisatgmi_obj.average(
         str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01', gasname=gas)
+oisatgmi_obj.bias_correct(sensor,gas)
 oisatgmi_obj.oi(sensor, error_ctm=error_ctm)
 oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}", gas, output_pdf_dir)
 oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}", output_nc_dir)

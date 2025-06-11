@@ -158,9 +158,9 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
         ctm_models_coordinate, grid_size, threshold_ctm)
 
     if isinstance(sat_data, satellite_amf):
-        print('....................... scd')
-        _, _, scd, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
-            tri, sat_data.scd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
+        print('....................... amf')
+        _, _, amf, _ = _upscaler(lons_grid, lats_grid, _interpolosis(
+            tri, sat_data.amf*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
             ctm_models_coordinate, grid_size, threshold_ctm)
     print('....................... tropopause')
     if np.size(sat_data.tropopause) != 1:
@@ -277,6 +277,6 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
         ], [], uncertainty, [], pressure_mid, averaging_kernels, upscaled_ctm_needed, [], [], [],
         aprior_col, apriori_profile, surface_pressure, apriori_surface, x_col, pressure_weights, sat_data.sensor)
     elif isinstance(sat_data, satellite_amf):
-        interpolated_sat = satellite_amf(vcd, scd, sat_data.time, tropopause, latitude_center, longitude_center, [
+        interpolated_sat = satellite_amf(vcd, amf, sat_data.time, tropopause, latitude_center, longitude_center, [
         ], [], uncertainty, [], pressure_mid, scattering_weights, upscaled_ctm_needed, [], [], [], [])
     return interpolated_sat

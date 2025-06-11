@@ -6,7 +6,7 @@ import datetime
 @dataclass
 class satellite_amf:
     vcd: np.ndarray
-    scd: np.ndarray
+    amf: np.ndarray
     time: datetime.datetime
     tropopause: np.ndarray
     latitude_center: np.ndarray

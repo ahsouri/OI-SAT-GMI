@@ -61,6 +61,49 @@ class oisatgmi(object):
             startdate, enddate, self.reader_obj)
         if gasname == 'O3':
             self.ctm_averaged_vcd = self.ctm_averaged_vcd/(2.69e16*1e-15)
+            
+    def bias_correct(self, sat_type, gasname):
+        # apply bias correction based on several validation studies
+
+        if sat_type == "TROPOMI" and gasname == "NO2":
+            print("applying the bias correction for TROPOMI NO2")
+            sat_averaged_vcd_bias_corrected = (
+                self.sat_averaged_vcd- 0.32)/0.66
+            '''
+            reference: Amir
+            '''
+        elif sat_type == "TROPOMI" and gasname == "HCHO":
+            print("applying the bias correction for TROPOMI HCHO")
+            sat_averaged_vcd_bias_corrected = (
+                self.sat_averaged_vcd - 0.90)/0.59
+            '''
+            reference: Amir
+            '''
+        elif sat_type == "OMI" and gasname == "NO2":
+            print("applying the bias correction for OMI NO2")
+            '''
+            need to work on these again
+            '''
+            sat_averaged_vcd_bias_corrected = (
+                self.sat_averaged_vcd - 0.32)/0.63
+            '''
+            reference: Johnson et al., 2023 -- offset is from TROPOMI NO2, slope is from Matt's paper
+            '''
+        elif sat_type == "OMI" and gasname == "HCHO":
+            print("applying the bias correction for OMI HCHO")
+            sat_averaged_vcd_bias_corrected = (
+                self.sat_averaged_vcd - 0.821)/(0.79)
+            '''
+            reference: Ayazpour et al., Submitted, Auto Ozone Monitoring Instrument (OMI) Collection 4 Formaldehyde Product
+	    based on Figure 11, monthly climatology regression
+            '''
+
+        else:
+            print("NOT applying the bias correction for satellite VCDs")
+            sat_averaged_vcd_bias_corrected = self.sat_averaged_vcd
+
+        # populating the averaged vcds with the bias corrected ones
+        self.sat_averaged_vcd = sat_averaged_vcd_bias_corrected
 
     def oi(self, sensor: str, error_ctm=50.0):
         if sensor != 'GOSAT':
