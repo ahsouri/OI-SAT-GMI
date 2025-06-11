@@ -1464,22 +1464,30 @@ class readers(object):
                 latitude = ctm_data[0].latitude
                 longitude = ctm_data[0].longitude
                 time = ctm_data[0].time
-                ctm_type = 'GMI'
-                # averaging over variable things
-                gas_profile = []
-                pressure_mid = []
-                delta_p = []
-                for ctm in ctm_data:
-                    gas_profile.append(ctm.gas_profile)
-                    pressure_mid.append(ctm.pressure_mid)
-                    delta_p.append(ctm.delta_p)
+                ctm_type = 'HiGMI'
+                # Initialize sums and count
+                total_count = len(ctm_data)
+                gas_profile_sum = ctm_data[0].gas_profile.copy()
+                pressure_mid_sum = ctm_data[0].pressure_mid.copy()
+                delta_p_sum = ctm_data[0].delta_p.copy()
 
-                gas_profile = np.nanmean(np.array(gas_profile), axis=0)
-                pressure_mid = np.nanmean(np.array(pressure_mid), axis=0)
-                delta_p = np.nanmean(np.array(delta_p), axis=0)
+                # Add the rest of the files
+                for i in range(1, len(ctm_data)):
+                    gas_profile_sum += ctm_data[i].gas_profile
+                    pressure_mid_sum += ctm_data[i].pressure_mid
+                    delta_p_sum += ctm_data[i].delta_p
+                    # Free memory by removing the processed data
+                    ctm_data[i].gas_profile = None
+                    ctm_data[i].pressure_mid = None
+                    ctm_data[i].delta_p = None
+
+                # Calculate averages
+                gas_profile_avg = gas_profile_sum / total_count
+                pressure_mid_avg = pressure_mid_sum / total_count
+                delta_p_avg = delta_p_sum / total_count
                 # shape up the ctm class
-                self.ctm_data = [ctm_model(latitude, longitude, time, gas_profile,pressure_mid, [], 
-                                           delta_p, ctm_type, True)]
+                self.ctm_data = [ctm_model(latitude, longitude, time, gas_profile_avg,pressure_mid_avg, [], 
+                                           delta_p_avg, ctm_type, True)]
                 ctm_data = []
             else:
                 self.ctm_data = ctm_data
