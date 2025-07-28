@@ -189,7 +189,7 @@ def Hi_GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequenc
     def hi_gmi_reader_wrapper(fname_met: str, fname_gas: str, gasname: str) -> ctm_model:
         # read the data
         print("Currently reading: " + fname_met.split('/')[-1])
-        ctmtype = "HIGMI"
+        ctmtype = "HiGMI"
         # read coordinates
         lon = _read_nc(fname_met, 'lon')
         lat = _read_nc(fname_met, 'lat')
@@ -246,8 +246,26 @@ def Hi_GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, frequenc
             raise Exception(
                 "the data are not consistent")
         # define gas profiles to be saved
-        outputs = Parallel(n_jobs=num_job)(delayed(hi_gmi_reader_wrapper)(
-            tavg1_3d_met_files[k], tavg1_3d_gas_files[k], gas_to_be_saved) for k in range(len(tavg1_3d_met_files)))
+        print("We must average HiGMI because of memory limits regardless of the user's choice")
+        total_count = len(tavg1_3d_met_files)
+        for k in range(len(tavg1_3d_met_files)):
+            ctm_data = hi_gmi_reader_wrapper(tavg1_3d_met_files[k], tavg1_3d_gas_files[k], gas_to_be_saved)
+            if k==0:
+               gas_profile_sum = ctm_data.gas_profile.copy()
+               pressure_mid_sum = ctm_data.pressure_mid.copy()
+               delta_p_sum = ctm_data.delta_p.copy()
+            else:
+               gas_profile_sum += ctm_data.gas_profile
+               pressure_mid_sum += ctm_data.pressure_mid
+               delta_p_sum += ctm_data.delta_p
+
+        # calculate averages
+        gas_profile_avg = gas_profile_sum / total_count
+        pressure_mid_avg = pressure_mid_sum / total_count
+        delta_p_avg = delta_p_sum / total_count
+        gmi_data = ctm_model(ctm_data.latitude, ctm_data.longitude, ctm_data.time, gas_profile_avg,
+                             pressure_mid_avg, [], delta_p_avg, 'HiGMI', True)
+        outputs=[gmi_data]
         return outputs
 
 def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1) -> ctm_model:
@@ -1389,7 +1407,7 @@ class readers(object):
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
-    def read_ctm_data(self, YYYYMM: str, gas: str, frequency_opt: str, averaged=False, num_job=1):
+    def read_ctm_data(self, YYYYMM: str, gas: str, frequency_opt: str, averaging=False, num_job=1):
         '''
             read ctm data
             Input:
@@ -1404,7 +1422,7 @@ class readers(object):
         if self.ctm_product == 'GMI':
             ctm_data = GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas,
                                   frequency_opt=frequency_opt, num_job=num_job)
-            if averaged == True:
+            if averaging == True:
                 # constant variables
                 print("Averaging CTM files ...")
                 latitude = ctm_data[0].latitude
@@ -1433,7 +1451,7 @@ class readers(object):
         if self.ctm_product == 'HiGMI':
             ctm_data = Hi_GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas,
                                   frequency_opt=frequency_opt, num_job=1)
-            if averaged == True:
+            if averaging == True:
                 # constant variables
                 print("Averaging CTM files ...")
                 latitude = ctm_data[0].latitude
@@ -1503,7 +1521,7 @@ if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('HiGMI', Path('./higmi/'))
     reader_obj.read_ctm_data(
-        '202301', 'HCHO', frequency_opt='hourly', averaged=True)
+        '202301', 'HCHO', frequency_opt='hourly', averaging=True)
     reader_obj.add_satellite_data(
         'TROPOMI_HCHO', Path('./download_bucket/trop_hcho_subset/'))
     reader_obj.read_satellite_data(

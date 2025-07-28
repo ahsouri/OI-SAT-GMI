@@ -33,7 +33,7 @@ month = int(sys.argv[2])
 
 oisatgmi_obj = oisatgmi()
 oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
-                       Path(sat_dir), str(year) + f"{month:02}", averaged=ctm_avg, read_ak=read_AK,
+                       Path(sat_dir), str(year) + f"{month:02}", averaging=ctm_avg, read_ak=read_AK,
                        trop=troposphere_only, num_job=int(num_job))
 if sensor == "MOPITT":
    oisatgmi_obj.conv_ak(sensor)
