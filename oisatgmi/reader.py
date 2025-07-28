@@ -330,6 +330,89 @@ def ECCOH_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: list, num_job=1
         eccoh_files[k], gas_to_be_saved) for k in range(len(eccoh_files)))
     return outputs
 
+def CMAQ_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str, gasname: str):
+    '''
+        cmaq reader core
+             dir_mcip [str]: the folder containing the mcip outputs
+             dir_cmaq [str]: the folder containing the cmaq conc outputs
+             YYYYMM [str]: the target month and year, e.g., 202005 (May 2020)
+             k [int]: the index of the file
+             gasname [str]: the name of the gas to read
+        Output [ctm_model]: the ctm @dataclass
+    '''
+
+    def cmaq_reader_inside(cmaq_target_file,met_file_3d_file,met_file_2d_file,grd_file_2d_file):
+
+        print("Currently reading: " + cmaq_target_file.split('/')[-1])
+        # reading time and coordinates
+        lat = _read_nc(grd_file_2d_file, 'LAT')
+        lon = _read_nc(grd_file_2d_file, 'LON')
+        time_var = _read_nc(cmaq_target_file, 'TFLAG')
+        # populating cmaq time
+        time = []
+        for t in range(0, np.shape(time_var)[0]):
+            cmaq_date = datetime.datetime.strptime(
+                str(time_var[t, 0, 0]), '%Y%j').date()
+            time.append(datetime.datetime(int(cmaq_date.strftime('%Y')), int(cmaq_date.strftime('%m')),
+                                      int(cmaq_date.strftime('%d')), int(time_var[t, 0, 1]/10000.0), 0, 0) +
+                    datetime.timedelta(minutes=0))
+
+        prs = _read_nc(met_file_3d_file, 'PRES').astype('float32')/100.0  # hPa
+        surf_prs = _read_nc(met_file_2d_file, 'PRSFC').astype('float32')/100.0
+        delp = prs.copy()
+        # calculate delta pressure
+        for i in range(0, np.shape(prs)[1]):
+            if i == 0:  # the first layer
+                delp[:, i, :, :] = 2.0*(surf_prs - prs[:, 0, :, :])
+            elif i == np.shape(delp)[1]-1:  # the last layer
+                delp[:, i, :, :] = prs[:, i-1, :, :] - prs[:, i, :, :]
+            else:  # the between
+                delp[:, i, :, :] = (prs[:, i, :, :] + prs[:, i-1, :, :]) * \
+                    0.5 - (prs[:, i+1, :, :] + prs[:, i, :, :])*0.5
+        if gasname == 'HCHO':
+            gasname = 'FORM'
+        # read gas in ppbv
+        gas = _read_nc(cmaq_target_file, gasname)*1000.0  # ppb
+        gas = gas.astype('float32')
+        # populate cmaq_data format
+        cmaq_data = ctm_model(lat, lon, time, gas, prs, [], delp, 'CMAQ', False)
+        return cmaq_data
+    
+    cmaq_target_files = sorted(glob.glob(dir_cmaq + "/CCTM_CONC_*" + YYYYMM +  "*.nc"))
+    grd_files_2d = sorted(
+            glob.glob(dir_mcip + "/GRIDCRO2D_*" + \
+        YYYYMM +  "*"))
+    met_files_2d = sorted(
+            glob.glob(dir_mcip + "/METCRO2D_*" + YYYYMM  + "*"))
+    met_files_3d = sorted(
+            glob.glob(dir_mcip + "/METCRO3D_*" + YYYYMM  + "*"))
+    if len(cmaq_target_files) != len(met_files_3d):
+            raise Exception(
+                "the data are not consistent")
+    # define gas profiles to be saved
+    print("We must average CMAQ because of memory limits regardless of the user's choice")
+    total_count = len(met_files_3d)
+    for k in range(len(met_files_3d)):
+        ctm_data = cmaq_reader_inside(cmaq_target_files[k],met_files_3d[k],met_files_2d[k],grd_files_2d[k])
+        if k==0:
+            gas_profile_sum = ctm_data.gas_profile.copy()
+            pressure_mid_sum = ctm_data.pressure_mid.copy()
+            delta_p_sum = ctm_data.delta_p.copy()
+        else:
+            gas_profile_sum += ctm_data.gas_profile
+            pressure_mid_sum += ctm_data.pressure_mid
+            delta_p_sum += ctm_data.delta_p
+
+        # calculate averages
+        gas_profile_avg = gas_profile_sum / total_count
+        pressure_mid_avg = pressure_mid_sum / total_count
+        delta_p_avg = delta_p_sum / total_count
+        cmaq_data_final = ctm_model(ctm_data.latitude, ctm_data.longitude, ctm_data.time, gas_profile_avg,
+                             pressure_mid_avg, [], delta_p_avg, 'CMAQ', True)
+        outputs=[cmaq_data_final]
+    
+    return outputs
+
 def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
        TEMPO NO2 L2 reader
@@ -1349,7 +1432,7 @@ class readers(object):
         self.satellite_product_dir = product_dir
         self.satellite_product_name = product_name
 
-    def add_ctm_data(self, product_name: int, product_dir: Path):
+    def add_ctm_data(self, product_name: int, product_dir: Path, mcip_dir=None):
         '''
             add CTM data
             Input:
@@ -1358,10 +1441,12 @@ class readers(object):
                                 "ECCOH"
                                 "HiGMI"
                 product_dir  [Path]: a path object describing the path of CTM files
+                mcip_dir     [Path]: optional mcip dir for cmaq
         '''
 
         self.ctm_product_dir = product_dir
         self.ctm_product = product_name
+        self.mcip_dir = mcip_dir
 
     def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1):
         '''
@@ -1449,42 +1534,14 @@ class readers(object):
                 self.ctm_data = ctm_data
                 ctm_data = []
         if self.ctm_product == 'HiGMI':
+            # HiGMI will be always get averaged inside the main reader because of out-of-memory issues
             ctm_data = Hi_GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas,
                                   frequency_opt=frequency_opt, num_job=1)
-            if averaging == True:
-                # constant variables
-                print("Averaging CTM files ...")
-                latitude = ctm_data[0].latitude
-                longitude = ctm_data[0].longitude
-                time = ctm_data[0].time
-                ctm_type = 'HiGMI'
-                # Initialize sums and count
-                total_count = len(ctm_data)
-                gas_profile_sum = ctm_data[0].gas_profile.copy()
-                pressure_mid_sum = ctm_data[0].pressure_mid.copy()
-                delta_p_sum = ctm_data[0].delta_p.copy()
 
-                # Add the rest of the files
-                for i in range(1, len(ctm_data)):
-                    gas_profile_sum += ctm_data[i].gas_profile
-                    pressure_mid_sum += ctm_data[i].pressure_mid
-                    delta_p_sum += ctm_data[i].delta_p
-                    # Free memory by removing the processed data
-                    ctm_data[i].gas_profile = None
-                    ctm_data[i].pressure_mid = None
-                    ctm_data[i].delta_p = None
-
-                # Calculate averages
-                gas_profile_avg = gas_profile_sum / total_count
-                pressure_mid_avg = pressure_mid_sum / total_count
-                delta_p_avg = delta_p_sum / total_count
-                # shape up the ctm class
-                self.ctm_data = [ctm_model(latitude, longitude, time, gas_profile_avg,pressure_mid_avg, [], 
-                                           delta_p_avg, ctm_type, True)]
-                ctm_data = []
-            else:
-                self.ctm_data = ctm_data
-                ctm_data = []
+        if self.ctm_product == 'CMAQ':
+            # CMAQ will be always get averaged inside the main reader because of out-of-memory issues
+            ctm_data = cmaq_reader(self.mcip_dir.as_posix(), self.ctm_product_dir.as_posix(), YYYYMM, gas,
+                                  frequency_opt=frequency_opt, num_job=1)
         if self.ctm_product == 'ECCOH':
             self.ctm_data = ECCOH_reader(
                 self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)

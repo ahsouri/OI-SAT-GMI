@@ -16,6 +16,9 @@ ctm_name: 'FREE'
 # set the path of CTM netcdf files (either relative or absolute)
 ctm_dir: '../oisatgmi/download_bucket/gmi/'
 
+# set the path of mcip netcdf files in case ctm_name = CMAQ (either relative or absolute)
+mcip_dir: '../oisatgmi/download_bucket/gmi/'
+
 # the frequency of CTM files (3-hourly)
 ctm_freq: '3-hourly'
 
