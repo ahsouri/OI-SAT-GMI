@@ -341,7 +341,7 @@ def CMAQ_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str, gasname: str):
         Output [ctm_model]: the ctm @dataclass
     '''
 
-    def cmaq_reader_inside(cmaq_target_file,met_file_3d_file,met_file_2d_file,grd_file_2d_file):
+    def cmaq_reader_inside(cmaq_target_file,met_file_3d_file,met_file_2d_file,grd_file_2d_file,gasname):
 
         print("Currently reading: " + cmaq_target_file.split('/')[-1])
         # reading time and coordinates
@@ -386,6 +386,10 @@ def CMAQ_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str, gasname: str):
             glob.glob(dir_mcip + "/METCRO2D_*" + YYYYMM  + "*"))
     met_files_3d = sorted(
             glob.glob(dir_mcip + "/METCRO3D_*" + YYYYMM  + "*"))
+    print(cmaq_target_files)
+    print(met_files_3d)
+    print(len(cmaq_target_files))
+    print(len(met_files_3d))
     if len(cmaq_target_files) != len(met_files_3d):
             raise Exception(
                 "the data are not consistent")
@@ -393,7 +397,7 @@ def CMAQ_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str, gasname: str):
     print("We must average CMAQ because of memory limits regardless of the user's choice")
     total_count = len(met_files_3d)
     for k in range(len(met_files_3d)):
-        ctm_data = cmaq_reader_inside(cmaq_target_files[k],met_files_3d[k],met_files_2d[k],grd_files_2d[k])
+        ctm_data = cmaq_reader_inside(cmaq_target_files[k],met_files_3d[k],met_files_2d[k],grd_files_2d[k],gasname)
         if k==0:
             gas_profile_sum = ctm_data.gas_profile.copy()
             pressure_mid_sum = ctm_data.pressure_mid.copy()
@@ -1535,13 +1539,12 @@ class readers(object):
                 ctm_data = []
         if self.ctm_product == 'HiGMI':
             # HiGMI will be always get averaged inside the main reader because of out-of-memory issues
-            ctm_data = Hi_GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas,
+            self.ctm_data = Hi_GMI_reader(self.ctm_product_dir.as_posix(), YYYYMM, gas,
                                   frequency_opt=frequency_opt, num_job=1)
 
         if self.ctm_product == 'CMAQ':
             # CMAQ will be always get averaged inside the main reader because of out-of-memory issues
-            ctm_data = cmaq_reader(self.mcip_dir.as_posix(), self.ctm_product_dir.as_posix(), YYYYMM, gas,
-                                  frequency_opt=frequency_opt, num_job=1)
+            self.ctm_data = CMAQ_reader(self.mcip_dir.as_posix(), self.ctm_product_dir.as_posix(), YYYYMM, gas)
         if self.ctm_product == 'ECCOH':
             self.ctm_data = ECCOH_reader(
                 self.ctm_product_dir.as_posix(), YYYYMM, gas, num_job=num_job)

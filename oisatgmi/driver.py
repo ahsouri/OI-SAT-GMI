@@ -20,9 +20,9 @@ class oisatgmi(object):
         pass
 
     def read_data(self, ctm_type: str, ctm_path: Path, ctm_gas_name: str, ctm_frequency: str,
-                  sat_type: str, sat_path: Path, YYYYMM: str, averaging=False, read_ak=True, trop=False, num_job=1):
+                  sat_type: str, sat_path: Path, YYYYMM: str, averaging=False, read_ak=True, trop=False, num_job=1, mcip_dir=None):
         reader_obj = readers()
-        reader_obj.add_ctm_data(ctm_type, ctm_path)
+        reader_obj.add_ctm_data(ctm_type, ctm_path, mcip_dir=mcip_dir)
         reader_obj.read_ctm_data(YYYYMM, ctm_gas_name,
                                  frequency_opt=ctm_frequency, averaging=averaging, num_job=num_job)
         reader_obj.add_satellite_data(

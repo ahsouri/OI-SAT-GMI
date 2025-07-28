@@ -20,6 +20,7 @@ if ctm_name == "FREE":
     read_AK = "False"
 else:
     read_AK = ctrl_opts['read_AK']
+mcip_dir = ctrl_opts['mcip_dir']
 troposphere_only = ctrl_opts['troposphere_only']
 sat_dir = ctrl_opts['sat_dir']
 output_pdf_dir = ctrl_opts['output_pdf_dir']
@@ -34,7 +35,7 @@ month = int(sys.argv[2])
 oisatgmi_obj = oisatgmi()
 oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
                        Path(sat_dir), str(year) + f"{month:02}", averaging=ctm_avg, read_ak=read_AK,
-                       trop=troposphere_only, num_job=int(num_job))
+                       trop=troposphere_only, num_job=int(num_job), mcip_dir=Path(mcip_dir))
 if sensor == "MOPITT":
    oisatgmi_obj.conv_ak(sensor)
 elif sensor == "GOSAT":
