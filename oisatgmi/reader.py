@@ -1452,7 +1452,7 @@ class readers(object):
         self.ctm_product = product_name
         self.mcip_dir = mcip_dir
 
-    def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1):
+    def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1, segment_number=None):
         '''
             read L2 satellite data
             Input:
@@ -1490,7 +1490,7 @@ class readers(object):
                                        self.satellite_product_name, ctm_models_coordinate,
                                        YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         elif satellite == 'TEMPO':
-            self.sat_data = tempo_reader(self.satellite_product_dir.as_posix(),
+            self.sat_data = tempo_reader(self.satellite_product_dir.as_posix(),segment_number,
                                        self.satellite_product_name, ctm_models_coordinate,
                                        YYYYMM,  trop, read_ak=read_ak, num_job=num_job)             
         else:
