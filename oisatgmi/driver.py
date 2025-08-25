@@ -28,7 +28,7 @@ class oisatgmi(object):
         reader_obj.add_satellite_data(
             sat_type, sat_path)
         reader_obj.read_satellite_data(
-            YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job, segment_number=sergment_number)
+            YYYYMM, read_ak=read_ak, trop=trop, num_job=num_job, segment_number=segment_number)
         self.reader_obj = reader_obj
         self.gasname = ctm_gas_name[0]
         reader_obj = []
