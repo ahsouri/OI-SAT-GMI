@@ -47,8 +47,14 @@ def averaging(startdate: str, enddate: str, reader_obj):
     list_months = np.array(list_months)
     list_years = np.array(list_years)
 
-    sat_averaged_vcd = np.zeros((np.shape(reader_obj.sat_data[0].latitude_center)[0],
-                                 np.shape(reader_obj.sat_data[0].latitude_center)[
+    try:
+       first_valid_idx = next(i for i, sat_data in enumerate(reader_obj.sat_data) 
+                          if sat_data is not None)
+    except StopIteration:
+       print("No valid satellite data found!")
+
+    sat_averaged_vcd = np.zeros((np.shape(reader_obj.sat_data[first_valid_idx].latitude_center)[0],
+                                 np.shape(reader_obj.sat_data[first_valid_idx].latitude_center)[
         1],
         len(range(np.min(list_months),
                   np.max(list_months)+1)),

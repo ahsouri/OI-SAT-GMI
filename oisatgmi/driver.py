@@ -116,11 +116,17 @@ class oisatgmi(object):
 
         # pick the right latitude and longitude
         # the right one is the coarsest one so
-        if np.size(self.reader_obj.ctm_data[0].latitude)*np.size(self.reader_obj.ctm_data[0].longitude) > \
-           np.size(self.reader_obj.sat_data[0].latitude_center)*np.size(self.reader_obj.sat_data[0].longitude_center):
+        try:
+           first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
+                          if sat_data is not None)
+        except StopIteration:
+           print("No valid satellite data found!")
 
-            lat = self.reader_obj.sat_data[0].latitude_center
-            lon = self.reader_obj.sat_data[0].longitude_center
+        if np.size(self.reader_obj.ctm_data[0].latitude)*np.size(self.reader_obj.ctm_data[0].longitude) > \
+           np.size(self.reader_obj.sat_data[first_valid_idx].latitude_center)*np.size(self.reader_obj.sat_data[first_valid_idx].longitude_center):
+
+            lat = self.reader_obj.sat_data[first_valid_idx].latitude_center
+            lon = self.reader_obj.sat_data[first_valid_idx].longitude_center
         else:
             lat = self.reader_obj.ctm_data[0].latitude
             lon = self.reader_obj.ctm_data[0].longitude
@@ -137,6 +143,11 @@ class oisatgmi(object):
         # writing
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
+        try:
+           first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
+                          if sat_data is not None)
+        except StopIteration:
+           print("No valid satellite data found!")
 
         ncfile = Dataset(output_folder + '/' + output_file + '.nc', 'w')
 
@@ -177,11 +188,11 @@ class oisatgmi(object):
 
         data8 = ncfile.createVariable(
             'lon', dtype('float32').char, ('x', 'y'))
-        data8[:, :] = self.reader_obj.sat_data[0].longitude_center
+        data8[:, :] = self.reader_obj.sat_data[first_valid_idx].longitude_center
 
         data9 = ncfile.createVariable(
             'lat', dtype('float32').char, ('x', 'y'))
-        data9[:, :] = self.reader_obj.sat_data[0].latitude_center
+        data9[:, :] = self.reader_obj.sat_data[first_valid_idx].latitude_center
 
         data10 = ncfile.createVariable(
             'aux1', dtype('float32').char, ('x', 'y'))

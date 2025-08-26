@@ -386,10 +386,6 @@ def CMAQ_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str, gasname: str):
             glob.glob(dir_mcip + "/METCRO2D_*" + YYYYMM  + "*"))
     met_files_3d = sorted(
             glob.glob(dir_mcip + "/METCRO3D_*" + YYYYMM  + "*"))
-    print(cmaq_target_files)
-    print(met_files_3d)
-    print(len(cmaq_target_files))
-    print(len(met_files_3d))
     if len(cmaq_target_files) != len(met_files_3d):
             raise Exception(
                 "the data are not consistent")
@@ -455,14 +451,14 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
         # read the precision
         uncertainty = _read_group_nc(fname, ['product'],
                                      'vertical_column_troposphere_uncertainty')
-        
+    vcd = (vcd*1e-15).astype('float16')
+    uncertainty = (uncertainty*1e-15).astype('float16')
     # read quality flag
     quality_flag_temp = _read_group_nc(
         fname, ['product'], 'main_data_quality_flag').astype('float16')
-    quality_flag = np.zeros_like(quality_flag_temp)*-100.0
-    quality_flag[quality_flag_temp==0.0]==1.0
+    quality_flag = np.ones_like(quality_flag_temp)*-100.0
+    quality_flag[quality_flag_temp==0.0]=1.0
     # read pressures for SWs
-    
     surface_pressure_atr = _get_nc_attr_group_tempo(fname)
     eta_a = surface_pressure_atr["Eta_A"]
     eta_b = surface_pressure_atr["Eta_B"]
@@ -530,14 +526,14 @@ def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
     # read the precision
     uncertainty = _read_group_nc(fname, ['product'],
                                      'vertical_column_uncertainty')
-        
+    vcd = (vcd*1e-15).astype('float16')
+    uncertainty = (uncertainty*1e-15).astype('float16')
     # read quality flag
     quality_flag_temp = _read_group_nc(
-        fname, ['product'], 'main_data_quality_flag').astype('float16')
-    quality_flag = np.zeros_like(quality_flag_temp)*-100.0
-    quality_flag[quality_flag_temp==0.0]==1.0
+        fname, ['product'], 'main_data_quality_flag')
+    quality_flag = np.ones_like(quality_flag_temp)*-100.0
+    quality_flag[quality_flag_temp==0.0]=1.0
     # read pressures for SWs
-    
     surface_pressure_atr = _get_nc_attr_group_tempo(fname)
     eta_a = surface_pressure_atr["Eta_A"]
     eta_b = surface_pressure_atr["Eta_B"]
@@ -806,7 +802,7 @@ def omi_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak=T
 
     quality_flag_temp = _read_group_nc(
         fname, ['SCIENCE_DATA'], 'VcdQualityFlags').astype('float16')
-    quality_flag = np.zeros_like(quality_flag_temp)*-100.0
+    quality_flag = np.ones_like(quality_flag_temp)*-100.0
     for i in range(0, np.shape(quality_flag)[0]):
         for j in range(0, np.shape(quality_flag)[1]):
             flag = '{0:08b}'.format(int(quality_flag_temp[i, j]))
@@ -1295,7 +1291,7 @@ def tempo_reader(product_dir: str, tempo_hour: int, satellite_product_name: str,
     '''
 
     # find L2 files first
-    L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L2_*" + str(YYYYMM) + f"*_S{tempo_hour:03d}*.nc"))
+    L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L2_*" + str(YYYYMM) + f"*T{tempo_hour:02d}*.nc"))
     L2_files = _remove_empty_files(L2_files)
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
@@ -1451,7 +1447,7 @@ class readers(object):
         self.ctm_product = product_name
         self.mcip_dir = mcip_dir
 
-    def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1):
+    def read_satellite_data(self, YYYYMM: str, read_ak=True, trop=False, num_job=1, tempo_hour=None):
         '''
             read L2 satellite data
             Input:
@@ -1489,9 +1485,9 @@ class readers(object):
                                        self.satellite_product_name, ctm_models_coordinate,
                                        YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         elif satellite == 'TEMPO':
-            self.sat_data = tempo_reader(self.satellite_product_dir.as_posix(),
+            self.sat_data = tempo_reader(self.satellite_product_dir.as_posix(), tempo_hour,
                                        self.satellite_product_name, ctm_models_coordinate,
-                                       YYYYMM,  trop, read_ak=read_ak, num_job=num_job)             
+                                       YYYYMM,  trop, read_ak=read_ak, num_job=num_job)
         else:
             raise Exception("the satellite is not supported, come tomorrow!")
 
@@ -1578,13 +1574,13 @@ class readers(object):
 # testing
 if __name__ == "__main__":
     reader_obj = readers()
-    reader_obj.add_ctm_data('HiGMI', Path('./higmi/'))
+    reader_obj.add_ctm_data('FREE', Path('./higmi/'))
     reader_obj.read_ctm_data(
-        '202301', 'HCHO', frequency_opt='hourly', averaging=True)
+        '202309', 'HCHO', frequency_opt='hourly', averaging=True)
     reader_obj.add_satellite_data(
-        'TROPOMI_HCHO', Path('./download_bucket/trop_hcho_subset/'))
+        'TEMPO_HCHO', Path('./download_bucket/tempo_test/'))
     reader_obj.read_satellite_data(
-        '202301', read_ak=True, num_job=1)
+        '202309', read_ak=False, num_job=1,tempo_hour=11)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center
@@ -1598,6 +1594,7 @@ if __name__ == "__main__":
             continue
         output[:, :, counter] = trop.vcd
         print(trop.vcd)
+
     print(reader_obj.ctm_data[0].gas_profile)
 
     #output[output <= 0.0] = np.nan

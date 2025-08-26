@@ -34,22 +34,27 @@ month = int(sys.argv[2])
 
 # if TEMPO is selected
 if sensor == "TEMPO":
-   for hour in range(1,24):
-       oisatgmi_obj = oisatgmi()
-       oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
+   for hour in range(0,25):
+       try:
+         oisatgmi_obj = oisatgmi()
+         oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
                        Path(sat_dir), str(year) + f"{month:02}", averaging=ctm_avg, read_ak=read_AK,
                        trop=troposphere_only, num_job=int(num_job), mcip_dir=Path(mcip_dir), tempo_hour = hour)
-       oisatgmi_obj.recal_amf()
-       if month != 12:
-          oisatgmi_obj.average(str(
-             year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01', gasname=gas)
-       else:
-          oisatgmi_obj.average(
-             str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01', gasname=gas)
-          oisatgmi_obj.bias_correct(sensor,gas)
-          oisatgmi_obj.oi(sensor, error_ctm=error_ctm)
-          oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}" + '_' + str(hour), gas, output_pdf_dir)
-          oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}" + '_' + str(hour), output_nc_dir)
+         oisatgmi_obj.recal_amf()
+         if month != 12:
+            oisatgmi_obj.average(str(
+              year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01', gasname=gas)
+         else:
+            oisatgmi_obj.average(
+              str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01', gasname=gas)
+
+         oisatgmi_obj.bias_correct(sensor,gas)
+         oisatgmi_obj.oi(sensor, error_ctm=error_ctm)
+         oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}" + '_' + str(hour), gas, output_pdf_dir)
+         oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}" + '_' + str(hour), output_nc_dir)
+       except FileNotFoundError:
+         print(f"File not found for {hour} UTC!")
+
    exit() # we should skip the rest
 
 oisatgmi_obj = oisatgmi()
