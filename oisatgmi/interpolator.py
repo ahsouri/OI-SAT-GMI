@@ -13,18 +13,18 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         interpolator = LinearNDInterpolator(
             interpol_func, (Z).flatten(), fill_value=np.nan)
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold*2.0] = np.nan
     elif interpolator_type == 2:
         interpolator = NearestNDInterpolator(interpol_func, (Z).flatten())
         ZZ = interpolator((X, Y))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold*2.0] = np.nan
     elif interpolator_type == 3:
         interpolator = RBFInterpolator(
             interpol_func, (Z).flatten(), neighbors=5)
         XX = np.stack([X.ravel(), Y.ravel()], -1)
         ZZ = interpolator(XX)
         ZZ = ZZ.reshape(np.shape(X))
-        ZZ[dists > threshold*3.0] = np.nan
+        ZZ[dists > threshold*2.0] = np.nan
     else:
         raise Exception(
             "other type of interpolation methods has not been implemented yet")
@@ -121,7 +121,6 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     mask = sat_data.quality_flag > flag_thresh
     mask = np.multiply(mask, 1.0).squeeze()
     mask[mask != 1.0] = np.nan
-    # mask clouds
     # define the triangulation
     points = np.zeros((np.size(sat_center_lat), 2))
     points[:, 0] = sat_center_lon.flatten()

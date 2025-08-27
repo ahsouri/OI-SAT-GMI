@@ -436,6 +436,23 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
         fname, ['geolocation'], 'latitude').astype('float32')
     longitude_center = _read_group_nc(
         fname, ['geolocation'], 'longitude').astype('float32')
+    '''
+      tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
+      so I will replace them with an arbiatry area outside of the US. They will not be considered in the
+      analysis, but we need this ad-hoc fix for the interpolation to work.
+    '''
+    lat_corrected = latitude_center.copy()
+    lon_corrected = longitude_center.copy()
+    invalid_mask = (np.abs(lat_corrected) > 90.0) | (np.abs(lon_corrected) > 360.0)
+    n_invalid = np.sum(invalid_mask)
+    if n_invalid != 0.0:
+       lat_sequence = 35.0 + np.arange(n_invalid) * 0.001
+       lon_sequence = -140.0 + np.arange(n_invalid) * 0.001
+       # Replace invalid values
+       lat_corrected[invalid_mask] = lat_sequence
+       lon_corrected[invalid_mask] = lon_sequence
+    latitude_center  = lat_corrected
+    longitude_center = lon_corrected
     # read no2
     if trop == False:
         vcd = _read_group_nc(
@@ -519,10 +536,27 @@ def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
         fname, ['geolocation'], 'latitude').astype('float32')
     longitude_center = _read_group_nc(
         fname, ['geolocation'], 'longitude').astype('float32')
+    '''
+      tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
+      so I will replace them with an arbiatry area outside of the US. They will not be considered in the
+      analysis, but we need this ad-hoc fix for the interpolation to work.
+    '''
+    lat_corrected = latitude_center.copy()
+    lon_corrected = longitude_center.copy()
+    invalid_mask = (np.abs(lat_corrected) > 90.0) | (np.abs(lon_corrected) > 360.0)
+    n_invalid = np.sum(invalid_mask)
+    if n_invalid != 0.0:
+       lat_sequence = 35.0 + np.arange(n_invalid) * 0.001
+       lon_sequence = -140.0 + np.arange(n_invalid) * 0.001
+       # Replace invalid values
+       lat_corrected[invalid_mask] = lat_sequence
+       lon_corrected[invalid_mask] = lon_sequence
+    latitude_center  = lat_corrected
+    longitude_center = lon_corrected
     # read hcho
     vcd = _read_group_nc(
         fname, ['product'], 'vertical_column')
-    amf = _read_group_nc(fname, ['support_data'], 'amf') 
+    amf = _read_group_nc(fname, ['support_data'], 'amf')
     # read the precision
     uncertainty = _read_group_nc(fname, ['product'],
                                      'vertical_column_uncertainty')
@@ -1580,7 +1614,7 @@ if __name__ == "__main__":
     reader_obj.add_satellite_data(
         'TEMPO_HCHO', Path('./download_bucket/tempo_test/'))
     reader_obj.read_satellite_data(
-        '202309', read_ak=False, num_job=1,tempo_hour=11)
+        '202309', read_ak=False, num_job=1,tempo_hour=0)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center

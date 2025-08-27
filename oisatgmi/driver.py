@@ -116,11 +116,8 @@ class oisatgmi(object):
 
         # pick the right latitude and longitude
         # the right one is the coarsest one so
-        try:
-           first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
+        first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
                           if sat_data is not None)
-        except StopIteration:
-           print("No valid satellite data found!")
 
         if np.size(self.reader_obj.ctm_data[0].latitude)*np.size(self.reader_obj.ctm_data[0].longitude) > \
            np.size(self.reader_obj.sat_data[first_valid_idx].latitude_center)*np.size(self.reader_obj.sat_data[first_valid_idx].longitude_center):
@@ -143,11 +140,9 @@ class oisatgmi(object):
         # writing
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
-        try:
-           first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
+
+        first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
                           if sat_data is not None)
-        except StopIteration:
-           print("No valid satellite data found!")
 
         ncfile = Dataset(output_folder + '/' + output_file + '.nc', 'w')
 
