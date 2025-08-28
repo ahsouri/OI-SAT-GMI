@@ -432,10 +432,16 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
         1980, 1, 6) + datetime.timedelta(seconds=int(time))
     #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
     # read lat/lon at centers
-    latitude_center = _read_group_nc(
-        fname, ['geolocation'], 'latitude').astype('float32')
-    longitude_center = _read_group_nc(
-        fname, ['geolocation'], 'longitude').astype('float32')
+    try: # level 2
+       latitude_center = _read_group_nc(
+           fname, ['geolocation'], 'latitude').astype('float32')
+       longitude_center = _read_group_nc(
+           fname, ['geolocation'], 'longitude').astype('float32')
+    except: # level 3
+       latitude_center = _read_nc(
+           fname,'latitude').astype('float32')
+       longitude_center = _read_group_nc(
+           fname, 'longitude').astype('float32')        
     '''
       tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
       so I will replace them with an arbiatry area outside of the US. They will not be considered in the
@@ -512,6 +518,7 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
             1, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return
     return tempo_no2
+
 
 def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''
