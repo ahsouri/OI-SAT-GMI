@@ -426,7 +426,10 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
     # hcho reader
     print("Currently reading: " + fname.split('/')[-1])
     # read time
-    time = _read_group_nc(fname, ['geolocation'], 'time')
+    try: #level2
+       time = _read_group_nc(fname, ['geolocation'], 'time')
+    except: #level3
+       time = _read_nc(fname, 'time')
     time = np.squeeze(np.nanmean(time))
     time = datetime.datetime(
         1980, 1, 6) + datetime.timedelta(seconds=int(time))
@@ -440,8 +443,9 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
     except: # level 3
        latitude_center = _read_nc(
            fname,'latitude').astype('float32')
-       longitude_center = _read_group_nc(
-           fname, 'longitude').astype('float32')        
+       longitude_center = _read_nc(
+           fname, 'longitude').astype('float32')
+       longitude_center,latitude_center = np.meshgrid(longitude_center,latitude_center)
     '''
       tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
       so I will replace them with an arbiatry area outside of the US. They will not be considered in the
@@ -463,7 +467,10 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
     if trop == False:
         vcd = _read_group_nc(
             fname, ['support_data'], 'vertical_column_total')
-        amf = _read_group_nc(fname, ['support_data'], 'amf')
+        try: # level2
+           amf = _read_group_nc(fname, ['support_data'], 'amf')
+        except: # level3
+           amf = _read_group_nc(fname, ['support_data'], 'amf_total')
         # read the precision
         uncertainty = _read_group_nc(fname, ['support_data'],
                                      'vertical_column_total_uncertainty')
@@ -507,15 +514,15 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
             fname, ['support_data'], 'tropopause_pressure').astype('float16')
     else:
         tropopause = np.empty((1))
-    # populate omi class
+    # populate sat class
     tempo_no2 = satellite_amf(vcd, amf, time, tropopause, latitude_center,
                             longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.04  # degree
+        grid_size = 0.05  # degree
         tempo_no2 = interpolator(
-            1, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
+            2, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return
     return tempo_no2
 
@@ -602,9 +609,9 @@ def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
     # interpolation
     if (ctm_models_coordinate is not None):
         print('Currently interpolating ...')
-        grid_size = 0.04  # degree
+        grid_size = 0.05  # degree
         tempo_hcho = interpolator(
-            1, grid_size, tempo_hcho, ctm_models_coordinate, flag_thresh=0.0)
+            2, grid_size, tempo_hcho, ctm_models_coordinate, flag_thresh=0.0)
     # return
     return tempo_hcho
 
@@ -1332,7 +1339,7 @@ def tempo_reader(product_dir: str, tempo_hour: int, satellite_product_name: str,
     '''
 
     # find L2 files first
-    L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L2_*" + str(YYYYMM) + f"*T{tempo_hour:02d}*.nc"))
+    L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L*_*" + str(YYYYMM) + f"*T{tempo_hour:02d}*.nc"))
     L2_files = _remove_empty_files(L2_files)
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
@@ -1599,7 +1606,7 @@ class readers(object):
             gridsize = ctrl_opts['gridsize']
             lon_grid = np.arange(lon1, lon2+gridsize, gridsize)
             lat_grid = np.arange(lat1, lat2+gridsize, gridsize)
-            lons_grid, lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
+            lons_grid, lats_grid = np.meshgrid(lon_grid, lat_grid)
             self.ctm_data = []
             time = []
             time.append(datetime.datetime(1989, 1, 16))  # my birthday
@@ -1617,11 +1624,11 @@ if __name__ == "__main__":
     reader_obj = readers()
     reader_obj.add_ctm_data('FREE', Path('./higmi/'))
     reader_obj.read_ctm_data(
-        '202309', 'HCHO', frequency_opt='hourly', averaging=True)
+        '202309', 'NO2', frequency_opt='hourly', averaging=True)
     reader_obj.add_satellite_data(
-        'TEMPO_HCHO', Path('./download_bucket/tempo_test/'))
+        'TEMPO_NO2', Path('./download_bucket/tempo_test/'))
     reader_obj.read_satellite_data(
-        '202309', read_ak=False, num_job=1,tempo_hour=0)
+        '202309', read_ak=False, trop=True, num_job=1,tempo_hour=18)
 
     latitude = reader_obj.sat_data[0].latitude_center
     longitude = reader_obj.sat_data[0].longitude_center

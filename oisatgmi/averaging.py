@@ -56,7 +56,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
         len(range(np.min(list_months),
                   np.max(list_months)+1)),
         len(range(np.min(list_years), np.max(list_years)+1))))
-    #sat_samples = np.zeros_like(sat_averaged_vcd)*np.nan
+
     sat_averaged_error = np.zeros_like(sat_averaged_vcd)*np.nan
     ctm_averaged_vcd = np.zeros_like(sat_averaged_vcd)*np.nan
     sat_aux1 = np.zeros_like(sat_averaged_vcd)*np.nan
