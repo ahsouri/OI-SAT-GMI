@@ -466,7 +466,9 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
     # read no2
     if trop == False:
         vcd = _read_group_nc(
-            fname, ['support_data'], 'vertical_column_total')
+            fname, ['product'], 'vertical_column_troposphere')+\
+              _read_group_nc(
+            fname, ['product'], 'vertical_column_stratosphere')
         try: # level2
            amf = _read_group_nc(fname, ['support_data'], 'amf')
         except: # level3
@@ -486,8 +488,11 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
     # read quality flag
     quality_flag_temp = _read_group_nc(
         fname, ['product'], 'main_data_quality_flag').astype('float16')
+    eff_cloud_fraction = _read_group_nc(fname, [
+                        'support_data'], 'eff_cloud_fraction')
     quality_flag = np.ones_like(quality_flag_temp)*-100.0
     quality_flag[quality_flag_temp==0.0]=1.0
+    quality_flag[eff_cloud_fraction>=0.2]= -100.0
     # read pressures for SWs
     surface_pressure_atr = _get_nc_attr_group_tempo(fname)
     eta_a = surface_pressure_atr["Eta_A"]
@@ -579,8 +584,11 @@ def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
     # read quality flag
     quality_flag_temp = _read_group_nc(
         fname, ['product'], 'main_data_quality_flag')
+    eff_cloud_fraction = _read_group_nc(fname, [
+                        'support_data'], 'eff_cloud_fraction')
     quality_flag = np.ones_like(quality_flag_temp)*-100.0
     quality_flag[quality_flag_temp==0.0]=1.0
+    quality_flag[eff_cloud_fraction>=0.2]= -100.0
     # read pressures for SWs
     surface_pressure_atr = _get_nc_attr_group_tempo(fname)
     eta_a = surface_pressure_atr["Eta_A"]
