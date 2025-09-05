@@ -37,7 +37,7 @@ class oisatgmi(object):
 
         self.reader_obj.sat_data = amf_recal(
             self.reader_obj.ctm_data, self.reader_obj.sat_data)
-        
+
     def cal_pwv(self):
 
         self.reader_obj.sat_data = pwv_calculator(self.reader_obj.ctm_data, self.reader_obj.sat_data)
@@ -57,11 +57,11 @@ class oisatgmi(object):
                 startdate [str]: starting date in YYYY-mm-dd format string
                 enddate [str]: ending date in YYYY-mm-dd format string  
         '''
-        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.aux1, self.aux2 = averaging(
+        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.aux1, self.aux2, self.avg_time = averaging(
             startdate, enddate, self.reader_obj)
         if gasname == 'O3':
             self.ctm_averaged_vcd = self.ctm_averaged_vcd/(2.69e16*1e-15)
-            
+
     def bias_correct(self, sat_type, gasname):
         # apply bias correction based on several validation studies
 
@@ -119,20 +119,42 @@ class oisatgmi(object):
         first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
                           if sat_data is not None)
 
-        if np.size(self.reader_obj.ctm_data[0].latitude)*np.size(self.reader_obj.ctm_data[0].longitude) > \
+        if np.size(self.reader_obj.ctm_data[first_valid_idx].latitude)*np.size(self.reader_obj.ctm_data[first_valid_idx].longitude) > \
            np.size(self.reader_obj.sat_data[first_valid_idx].latitude_center)*np.size(self.reader_obj.sat_data[first_valid_idx].longitude_center):
 
             lat = self.reader_obj.sat_data[first_valid_idx].latitude_center
             lon = self.reader_obj.sat_data[first_valid_idx].longitude_center
         else:
-            lat = self.reader_obj.ctm_data[0].latitude
-            lon = self.reader_obj.ctm_data[0].longitude
+            lat = self.reader_obj.ctm_data[first_valid_idx].latitude
+            lon = self.reader_obj.ctm_data[first_valid_idx].longitude
 
         report(lon, lat, self.ctm_averaged_vcd, self.ctm_averaged_vcd_corrected,
                self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.aux1, self.aux2, fname, folder, gasname)
 
+    def savedaily(self, folder, gasname, date):
+        # extract sat data
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
+                          if sat_data is not None)
+        latitude =  self.reader_obj.ctm_data[first_valid_idx].latitude
+        longitude = self.reader_obj.ctm_data[first_valid_idx].longitude
+        counter = -1
+        for sat in self.reader_obj.sat_data:
+            counter = counter + 1
+            if sat is None:
+                continue
+            time_sat = 10000.0*sat.time.year + 100.0 * \
+                sat.time.month + sat.time.day + sat.time.hour/24.0
+
+            sat_data = {"vcd_sat": sat.vcd, "vcd_ctm": sat.ctm_vcd,
+                     "vcd_err": sat.uncertainty, "time_sat": time_sat, "lat": latitude, "lon": longitude}
+            savemat(folder + "/" + "sat_data_" +
+                  gasname + "_" + str(time_sat) + str(counter) +  ".mat", sat_data)
+
     def write_to_nc(self, output_file, output_folder='diag'):
-        ''' 
+        '''
         Write the final results to a netcdf
         ARGS:
             output_file (char): the name of file to be outputted
@@ -149,6 +171,11 @@ class oisatgmi(object):
         # create the x and y dimensions.
         ncfile.createDimension('x', np.shape(self.sat_averaged_vcd)[0])
         ncfile.createDimension('y', np.shape(self.sat_averaged_vcd)[1])
+        ncfile.createDimension('t', None)
+
+        data1n = ncfile.createVariable('time', 'S1', ('t'))
+        time_string = self.avg_time.strftime("%Y-%m-%d %H:%M:%S")
+        data1n[:] = np.array(list(time_string), 'S1')
 
         data1 = ncfile.createVariable(
             'sat_averaged_vcd', dtype('float32').char, ('x', 'y'))
@@ -198,34 +225,6 @@ class oisatgmi(object):
         data11[:, :] = self.aux2
 
         ncfile.close()
-
-    def savedaily(self, folder, gasname, date):
-        # extract sat data
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        latitude = self.reader_obj.sat_data[0].latitude_center
-        longitude = self.reader_obj.sat_data[0].longitude_center
-        vcd_sat = np.zeros((np.shape(latitude)[0], np.shape(
-            latitude)[1], len(self.reader_obj.sat_data)))
-        vcd_err = np.zeros_like(vcd_sat)
-        vcd_ctm = np.zeros_like(vcd_sat)
-        time_sat = np.zeros((len(self.reader_obj.sat_data)))
-        counter = -1
-        for sat in self.reader_obj.sat_data:
-            counter = counter + 1
-            if sat is None:
-                continue
-            vcd_sat[:, :, counter] = sat.vcd
-            vcd_ctm[:, :, counter] = sat.ctm_vcd
-            vcd_err[:, :, counter] = sat.uncertainty
-            time_sat[counter] = 10000.0*sat.time.year + 100.0 * \
-                sat.time.month + sat.time.day + sat.time.hour/24.0
-
-        sat = {"vcd_sat": vcd_sat, "vcd_ctm": vcd_ctm,
-               "vcd_err": vcd_err, "time_sat": time_sat, "lat": latitude, "lon": longitude}
-        savemat(folder + "/" + "sat_data_" +
-                gasname + "_" + date + ".mat", sat)
-
 
 # testing
 if __name__ == "__main__":

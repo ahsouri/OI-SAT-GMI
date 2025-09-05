@@ -25,6 +25,12 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         ZZ = interpolator(XX)
         ZZ = ZZ.reshape(np.shape(X))
         ZZ[dists > threshold*2.0] = np.nan
+    elif interpolator_type == 4:
+        target_points = np.column_stack((X.ravel(), Y.ravel()))
+        dist, idx = interpol_func.query(target_points)  # find nearest neighbor indices
+        Z = Z.ravel()
+        ZZ = Z[idx].reshape(X.shape)
+        ZZ[dists > threshold*2.0] = np.nan
     else:
         raise Exception(
             "other type of interpolation methods has not been implemented yet")
@@ -72,8 +78,6 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         points = np.zeros((np.size(X), 2))
         points[:, 0] = X.flatten()
         points[:, 1] = Y.flatten()
-        if (tri is None):
-            tri = Delaunay(points)
         # remove to far estimates
         tree = cKDTree(points)
         grid = np.zeros((2, np.shape(ctm_latitude)[
@@ -81,10 +85,10 @@ def _upscaler(X: np.array, Y: np.array, Z: np.array, ctm_models_coordinate: dict
         grid[0, :, :] = ctm_longitude
         grid[1, :, :] = ctm_latitude
         xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
-        dists, _ = tree.query(xi)
-        # interpolate
-        Z = _interpolosis(tri, Z, ctm_longitude,
-                          ctm_latitude, 1, dists, threshold)
+        dists, idx = tree.query(xi)
+        # interpolate using KDtree
+        Z = _interpolosis(tree, Z, ctm_longitude,
+                          ctm_latitude, 4, dists, threshold)
         upscaled_ctm_needed = False
         return ctm_longitude, ctm_latitude, Z, upscaled_ctm_needed
     else:
@@ -101,7 +105,8 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
                     1 > Bilinear interpolation (recommended)
                     2 > Nearest neighbour
                     3 > RBF (thin_plate_spline)
-                    4 > Poppy (not implemented yet)
+                    4 > KDtree (fast nearest neighbour)
+                    5 > Poppy (not implemented yet)
             grid_size [float]: the size of grids defined by the user
             sat_data  [satellite_amf or satellite_opt]: a dataclass for satellite data
             ctm_models_coordinate [dic]: a dictionary containing lat and lon of the model
@@ -127,10 +132,6 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
     points[:, 1] = sat_center_lat.flatten()
     # if the points are not unique or weird, the convex hull can't be formed,
     # at this point, we can just skip this L2 file
-    try:
-        tri = Delaunay(points)
-    except:
-        return None
     # define the grid
     lat_ctm_min = np.min(ctm_models_coordinate['Latitude'].flatten())
     lat_ctm_max = np.max(ctm_models_coordinate['Latitude'].flatten())
@@ -139,22 +140,31 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
 
     lon_grid = np.arange(lon_ctm_min, lon_ctm_max+grid_size, grid_size)
     lat_grid = np.arange(lat_ctm_min, lat_ctm_max+grid_size, grid_size)
-    lons_grid, lats_grid = np.meshgrid(lon_grid.astype('float16'), lat_grid.astype('float16'))
+    lons_grid, lats_grid = np.meshgrid(lon_grid, lat_grid)
     # calculate distance to remove too-far estimates
     tree = cKDTree(points)
     grid = np.zeros((2, np.shape(lons_grid)[0], np.shape(lons_grid)[1]))
     grid[0, :, :] = lons_grid
     grid[1, :, :] = lats_grid
     xi = _ndim_coords_from_arrays(tuple(grid), ndim=points.shape[1])
-    dists, _ = tree.query(xi)
-    # if RBF is chosen
-    if interpolator_type == 3:
+    dists, idx = tree.query(xi)
+    if interpolator_type <3:
+       try:
+          tri = Delaunay(points)
+       except:
+          return None
+    if interpolator_type == 3: # if RBF is chosen
         tri = points
+    if interpolator_type == 4: # if Kdtree is chosen
+        tri = tree
     # interpolate 2Ds fields
     print('....................... vcd')
     upscaled_X, upscaled_Y, vcd, upscaled_ctm_needed = _upscaler(lons_grid, lats_grid, _interpolosis(
         tri, sat_data.vcd*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm)
+    if np.isnan(np.nanmean(vcd.flatten())):
+        print("the satellite granule doesn't fall into the region - skipping!")
+        return None
 
     if isinstance(sat_data, satellite_amf):
         print('....................... amf')

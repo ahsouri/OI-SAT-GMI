@@ -487,12 +487,12 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
     uncertainty = (uncertainty*1e-15).astype('float16')
     # read quality flag
     quality_flag_temp = _read_group_nc(
-        fname, ['product'], 'main_data_quality_flag').astype('float16')
+        fname, ['product'], 'main_data_quality_flag')
     eff_cloud_fraction = _read_group_nc(fname, [
                         'support_data'], 'eff_cloud_fraction')
     quality_flag = np.ones_like(quality_flag_temp)*-100.0
     quality_flag[quality_flag_temp==0.0]=1.0
-    quality_flag[eff_cloud_fraction>=0.2]= -100.0
+    quality_flag[eff_cloud_fraction>=0.2]=-100.0
     # read pressures for SWs
     surface_pressure_atr = _get_nc_attr_group_tempo(fname)
     eta_a = surface_pressure_atr["Eta_A"]
@@ -527,7 +527,7 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
         print('Currently interpolating ...')
         grid_size = 0.05  # degree
         tempo_no2 = interpolator(
-            2, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
+            4, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
     # return
     return tempo_no2
 
@@ -619,7 +619,7 @@ def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> s
         print('Currently interpolating ...')
         grid_size = 0.05  # degree
         tempo_hcho = interpolator(
-            2, grid_size, tempo_hcho, ctm_models_coordinate, flag_thresh=0.0)
+            4, grid_size, tempo_hcho, ctm_models_coordinate, flag_thresh=0.0)
     # return
     return tempo_hcho
 
@@ -695,9 +695,9 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')
-            grid_size = 0.10  # degree
+            grid_size = 0.05  # degree
             tropomi_hcho = interpolator(
-                1, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
+                2, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
         # return
         return tropomi_hcho
     except Exception as e:
@@ -1348,6 +1348,8 @@ def tempo_reader(product_dir: str, tempo_hour: int, satellite_product_name: str,
 
     # find L2 files first
     L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L*_*" + str(YYYYMM) + f"*T{tempo_hour:02d}*.nc"))
+    #L2_files = sorted(glob.glob(product_dir + "/TEMPO_*" + "_L*_*" + str(YYYYMM) + f"*S{tempo_hour:03d}*.nc"))
+    print("the number of files is " + str(len(L2_files)))
     L2_files = _remove_empty_files(L2_files)
     # read the files in parallel
     if satellite_product_name.split('_')[-1] == 'NO2':
@@ -1634,7 +1636,7 @@ if __name__ == "__main__":
     reader_obj.read_ctm_data(
         '202309', 'NO2', frequency_opt='hourly', averaging=True)
     reader_obj.add_satellite_data(
-        'TEMPO_NO2', Path('./download_bucket/tempo_test/'))
+        'TEMPO_NO2', Path('./download_bucket/tempo_no2_L2/'))
     reader_obj.read_satellite_data(
         '202309', read_ak=False, trop=True, num_job=1,tempo_hour=18)
 

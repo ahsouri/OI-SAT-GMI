@@ -68,12 +68,14 @@ def averaging(startdate: str, enddate: str, reader_obj):
             sat_chosen_aux2 = []
             sat_chosen_error = []
             ctm_chosen_vcd = []
+            time_chosen = []
             for sat_data in reader_obj.sat_data:
                 if (sat_data is None):
                     continue
                 time_sat = sat_data.time
                 # see if it falls
                 if ((time_sat.year == year) and (time_sat.month == month)):
+                    time_chosen.append(time_sat)
                     sat_chosen_vcd.append(sat_data.vcd)
                     sat_chosen_error.append(sat_data.uncertainty)
                     ctm_chosen_vcd.append(sat_data.ctm_vcd)
@@ -110,26 +112,9 @@ def averaging(startdate: str, enddate: str, reader_obj):
     ctm_averaged_vcd = ctm_averaged_vcd.squeeze()
     sat_aux1 = sat_aux1.squeeze()
     sat_aux2 = sat_aux2.squeeze()
-    # average over all data
-    if sat_averaged_vcd.ndim == 4:
-        sat_averaged_vcd = np.nanmean(np.nanmean(
-            sat_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
-        ctm_averaged_vcd = np.nanmean(np.nanmean(
-            ctm_averaged_vcd, axis=3).squeeze(), axis=2).squeeze()
-        # TODO: we should update this but we never average over several months or years
-        sat_averaged_error = np.sqrt(np.nanmean(np.nanmean(
-            sat_averaged_error**2, axis=3).squeeze(), axis=2).squeeze())
-        sat_aux1 = np.nanmean(np.nanmean(
-                sat_aux1, axis=3).squeeze(), axis=2).squeeze()
-        sat_aux2 = np.nanmean(np.nanmean(
-                sat_aux2, axis=3).squeeze(), axis=2).squeeze()
-    if sat_averaged_vcd.ndim == 3:
-        sat_averaged_vcd = np.nanmean(sat_averaged_vcd, axis=2).squeeze()
-        ctm_averaged_vcd = np.nanmean(ctm_averaged_vcd, axis=2).squeeze()
-        # TODO: we should update this but we never average over several months or years
-        sat_averaged_error = np.sqrt(np.nanmean(
-            sat_averaged_error**2, axis=2).squeeze())
-        sat_aux1 = np.nanmean(sat_aux1, axis=2).squeeze()
-        sat_aux2 = np.nanmean(sat_aux2, axis=2).squeeze()
-
-    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_aux1, sat_aux2
+    # average time
+    timestamps = [dt.timestamp() for dt in time_chosen]
+    avg_timestamp = sum(timestamps) / len(timestamps)
+    avg_datetime = datetime.datetime.fromtimestamp(avg_timestamp)
+    print(avg_datetime)
+    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_aux1, sat_aux2, avg_datetime

@@ -1,57 +1,57 @@
 # set your python executable path
-python_bin: '/nobackup/jjung13/miniconda3/bin'
+python_bin: '/discover/nobackup/asouri/miniconda3/bin/python3'
 
 # to run the job on debug queue
 debug: False
 
 # a hack to save outputs in daily for validation purposes
-save_daily: True
+save_daily: False
 
 # number of jobs
-num_job: 36
+num_job: 24
 
 # set the name of CTM model (GMI)
 ctm_name: 'FREE'
 
 # set the path of CTM netcdf files (either relative or absolute)
-ctm_dir: '../oisatgmi/download_bucket/gmi/'
+ctm_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/cmaq_subset/'
 
 # set the path of mcip netcdf files in case ctm_name = CMAQ (either relative or absolute)
-mcip_dir: '../oisatgmi/download_bucket/gmi/'
+mcip_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/cmaq_subset/'
 
-# the frequency of CTM files (3-hourly)
-ctm_freq: '3-hourly'
+# the frequency of CTM files (3-hourly, hourly)
+ctm_freq: 'hourly'
 
 # should we average CTMs? (reduce memory overhead by a lot)
-ctm_avg: True
+ctm_avg: False
 
 # error in the model VCD (%)
 ctm_error: 50.0
 
 # target gas (NO2, HCHO)
-gas: 'HCHO'
+gas: 'NO2'
 
 # the sensor name (OMI, TROPOMI, OMPS)
-sensor: 'OMPS'
+sensor: 'TEMPO'
 
 # consider scattering weights (or AKs) (memory intensive)
-read_AK: True
+read_AK: False
 
 # total column or tropospheric column (only applicable for NO2)
 troposphere_only: True
 
 # set the path of L2 files
-sat_dir: '/nobackup/jjung13/ACMAP_satellite/OMPS-NM_HCHO'
+sat_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/tempo_no2_L2/'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2019-01'
-end_date:   '2019-01'
+start_date: '2023-09'
+end_date:   '2023-09'
 
 # output folder for PDF reports
-output_pdf_dir: './report_test_reg'
+output_pdf_dir: './report_test_tempo'
 
 # output folder for NC diags
-output_nc_dir: './diag_test_reg'
+output_nc_dir: './diag_test_tempo'
 
 
 
