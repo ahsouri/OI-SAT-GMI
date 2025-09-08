@@ -119,14 +119,14 @@ class oisatgmi(object):
         first_valid_idx = next(i for i, sat_data in enumerate(self.reader_obj.sat_data)
                           if sat_data is not None)
 
-        if np.size(self.reader_obj.ctm_data[first_valid_idx].latitude)*np.size(self.reader_obj.ctm_data[first_valid_idx].longitude) > \
+        if np.size(self.reader_obj.ctm_data[0].latitude)*np.size(self.reader_obj.ctm_data[0].longitude) < \
            np.size(self.reader_obj.sat_data[first_valid_idx].latitude_center)*np.size(self.reader_obj.sat_data[first_valid_idx].longitude_center):
 
             lat = self.reader_obj.sat_data[first_valid_idx].latitude_center
             lon = self.reader_obj.sat_data[first_valid_idx].longitude_center
         else:
-            lat = self.reader_obj.ctm_data[first_valid_idx].latitude
-            lon = self.reader_obj.ctm_data[first_valid_idx].longitude
+            lat = self.reader_obj.ctm_data[0].latitude
+            lon = self.reader_obj.ctm_data[0].longitude
 
         report(lon, lat, self.ctm_averaged_vcd, self.ctm_averaged_vcd_corrected,
                self.sat_averaged_vcd, self.sat_averaged_error, self.increment_OI, self.ak_OI, self.error_OI, self.aux1, self.aux2, fname, folder, gasname)

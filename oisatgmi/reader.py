@@ -403,13 +403,13 @@ def CMAQ_reader(dir_mcip: str, dir_cmaq: str, YYYYMM: str, gasname: str):
             pressure_mid_sum += ctm_data.pressure_mid
             delta_p_sum += ctm_data.delta_p
 
-        # calculate averages
-        gas_profile_avg = gas_profile_sum / total_count
-        pressure_mid_avg = pressure_mid_sum / total_count
-        delta_p_avg = delta_p_sum / total_count
-        cmaq_data_final = ctm_model(ctm_data.latitude, ctm_data.longitude, ctm_data.time, gas_profile_avg,
+    # calculate averages
+    gas_profile_avg = gas_profile_sum / total_count
+    pressure_mid_avg = pressure_mid_sum / total_count
+    delta_p_avg = delta_p_sum / total_count
+    cmaq_data_final = ctm_model(ctm_data.latitude, ctm_data.longitude, ctm_data.time, gas_profile_avg,
                              pressure_mid_avg, [], delta_p_avg, 'CMAQ', True)
-        outputs=[cmaq_data_final]
+    outputs=[cmaq_data_final]
     
     return outputs
 
@@ -695,7 +695,7 @@ def tropomi_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) ->
         # interpolation
         if (ctm_models_coordinate is not None):
             print('Currently interpolating ...')
-            grid_size = 0.05  # degree
+            grid_size = 0.1  # degree
             tropomi_hcho = interpolator(
                 2, grid_size, tropomi_hcho, ctm_models_coordinate, flag_thresh=0.5)
         # return
