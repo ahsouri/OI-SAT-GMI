@@ -423,114 +423,116 @@ def tempo_reader_no2(fname: str, trop: bool, ctm_models_coordinate=None, read_ak
        Output:
              tempo_no2 [satellite_amf]: a dataclass format (see config.py)
     '''
-    # hcho reader
-    print("Currently reading: " + fname.split('/')[-1])
-    # read time
-    try: #level2
-       time = _read_group_nc(fname, ['geolocation'], 'time')
-    except: #level3
-       time = _read_nc(fname, 'time')
-    time = np.squeeze(np.nanmean(time))
-    time = datetime.datetime(
-        1980, 1, 6) + datetime.timedelta(seconds=int(time))
-    #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
-    # read lat/lon at centers
-    try: # level 2
-       latitude_center = _read_group_nc(
-           fname, ['geolocation'], 'latitude').astype('float32')
-       longitude_center = _read_group_nc(
-           fname, ['geolocation'], 'longitude').astype('float32')
-    except: # level 3
-       latitude_center = _read_nc(
-           fname,'latitude').astype('float32')
-       longitude_center = _read_nc(
-           fname, 'longitude').astype('float32')
-       longitude_center,latitude_center = np.meshgrid(longitude_center,latitude_center)
-    '''
-      tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
-      so I will replace them with an arbiatry area outside of the US. They will not be considered in the
-      analysis, but we need this ad-hoc fix for the interpolation to work.
-    '''
-    lat_corrected = latitude_center.copy()
-    lon_corrected = longitude_center.copy()
-    invalid_mask = (np.abs(lat_corrected) > 90.0) | (np.abs(lon_corrected) > 360.0)
-    n_invalid = np.sum(invalid_mask)
-    if n_invalid != 0.0:
-       lat_sequence = 35.0 + np.arange(n_invalid) * 0.001
-       lon_sequence = -140.0 + np.arange(n_invalid) * 0.001
-       # Replace invalid values
-       lat_corrected[invalid_mask] = lat_sequence
-       lon_corrected[invalid_mask] = lon_sequence
-    latitude_center  = lat_corrected
-    longitude_center = lon_corrected
-    # read no2
-    if trop == False:
-        vcd = _read_group_nc(
-            fname, ['product'], 'vertical_column_troposphere')+\
-              _read_group_nc(
-            fname, ['product'], 'vertical_column_stratosphere')
-        try: # level2
-           amf = _read_group_nc(fname, ['support_data'], 'amf')
-        except: # level3
-           amf = _read_group_nc(fname, ['support_data'], 'amf_total')
-        # read the precision
-        uncertainty = _read_group_nc(fname, ['support_data'],
+    try:
+       # hcho reader
+       print("Currently reading: " + fname.split('/')[-1])
+       # read time
+       try: #level2
+          time = _read_group_nc(fname, ['geolocation'], 'time')
+       except: #level3
+          time = _read_nc(fname, 'time')
+       time = np.squeeze(np.nanmean(time))
+       time = datetime.datetime(
+           1980, 1, 6) + datetime.timedelta(seconds=int(time))
+       #print(datetime.datetime.strptime(str(tropomi_hcho.time),"%Y-%m-%d %H:%M:%S"))
+       # read lat/lon at centers
+       try: # level 2
+          latitude_center = _read_group_nc(
+             fname, ['geolocation'], 'latitude').astype('float32')
+          longitude_center = _read_group_nc(
+             fname, ['geolocation'], 'longitude').astype('float32')
+       except: # level 3
+          latitude_center = _read_nc(
+             fname,'latitude').astype('float32')
+          longitude_center = _read_nc(
+             fname, 'longitude').astype('float32')
+          longitude_center,latitude_center = np.meshgrid(longitude_center,latitude_center)
+       '''
+         tempo has nonphysical values at the edge of first or last scanline making the interpolation fail
+         so I will replace them with an arbiatry area outside of the US. They will not be considered in the
+         analysis, but we need this ad-hoc fix for the interpolation to work.
+       '''
+       lat_corrected = latitude_center.copy()
+       lon_corrected = longitude_center.copy()
+       invalid_mask = (np.abs(lat_corrected) > 90.0) | (np.abs(lon_corrected) > 360.0)
+       n_invalid = np.sum(invalid_mask)
+       if n_invalid != 0.0:
+          lat_sequence = 35.0 + np.arange(n_invalid) * 0.001
+          lon_sequence = -140.0 + np.arange(n_invalid) * 0.001
+          # Replace invalid values
+          lat_corrected[invalid_mask] = lat_sequence
+          lon_corrected[invalid_mask] = lon_sequence
+       latitude_center  = lat_corrected
+       longitude_center = lon_corrected
+       # read no2
+       if trop == False:
+          vcd = _read_group_nc(
+             fname, ['product'], 'vertical_column_troposphere')+\
+               _read_group_nc(
+             fname, ['product'], 'vertical_column_stratosphere')
+          try: # level2
+             amf = _read_group_nc(fname, ['support_data'], 'amf')
+          except: # level3
+             amf = _read_group_nc(fname, ['support_data'], 'amf_total')
+          # read the precision
+          uncertainty = _read_group_nc(fname, ['support_data'],
                                      'vertical_column_total_uncertainty')
-    else:
-        vcd = _read_group_nc(
-            fname, ['product'], 'vertical_column_troposphere')
-        amf = _read_group_nc(fname, ['support_data'], 'amf_troposphere')
-        # read the precision
-        uncertainty = _read_group_nc(fname, ['product'],
+       else:
+          vcd = _read_group_nc(
+             fname, ['product'], 'vertical_column_troposphere')
+          amf = _read_group_nc(fname, ['support_data'], 'amf_troposphere')
+          # read the precision
+          uncertainty = _read_group_nc(fname, ['product'],
                                      'vertical_column_troposphere_uncertainty')
-    vcd = (vcd*1e-15).astype('float16')
-    uncertainty = (uncertainty*1e-15).astype('float16')
-    # read quality flag
-    quality_flag_temp = _read_group_nc(
-        fname, ['product'], 'main_data_quality_flag')
-    eff_cloud_fraction = _read_group_nc(fname, [
+       vcd = (vcd*1e-15).astype('float16')
+       uncertainty = (uncertainty*1e-15).astype('float16')
+       # read quality flag
+       quality_flag_temp = _read_group_nc(
+          fname, ['product'], 'main_data_quality_flag')
+       eff_cloud_fraction = _read_group_nc(fname, [
                         'support_data'], 'eff_cloud_fraction')
-    quality_flag = np.ones_like(quality_flag_temp)*-100.0
-    quality_flag[quality_flag_temp==0.0]=1.0
-    quality_flag[eff_cloud_fraction>=0.2]=-100.0
-    # read pressures for SWs
-    surface_pressure_atr = _get_nc_attr_group_tempo(fname)
-    eta_a = surface_pressure_atr["Eta_A"]
-    eta_b = surface_pressure_atr["Eta_B"]
-    ps = _read_group_nc(fname, [
+       quality_flag = np.ones_like(quality_flag_temp)*-100.0
+       quality_flag[quality_flag_temp==0.0]=1.0
+       quality_flag[eff_cloud_fraction>=0.2]=-100.0
+       # read pressures for SWs
+       surface_pressure_atr = _get_nc_attr_group_tempo(fname)
+       eta_a = surface_pressure_atr["Eta_A"]
+       eta_b = surface_pressure_atr["Eta_B"]
+       ps = _read_group_nc(fname, [
                         'support_data'], 'surface_pressure').astype('float16')
-    p_mid = np.zeros(
-        (72, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
-    if read_ak == True:
-        SWs = _read_group_nc(fname, [
+       p_mid = np.zeros(
+          (72, np.shape(vcd)[0], np.shape(vcd)[1])).astype('float32')
+       if read_ak == True:
+          SWs = _read_group_nc(fname, [
                         'support_data'], 'scattering_weights').astype('float16')
-    else:
-        SWs = np.empty((1))
-    # assiging p_mid
-    for z in range(0, 72):
-        p_mid[z, :, :] = 0.5*(eta_a[z]+eta_b[z]*ps[:, :] +
+       else:
+          SWs = np.empty((1))
+       # assiging p_mid
+       for z in range(0, 72):
+          p_mid[z, :, :] = 0.5*(eta_a[z]+eta_b[z]*ps[:, :] +
                               eta_a[z+1]+eta_b[z+1]*ps[:, :])
-    # remove bad SWs
-    SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
+       # remove bad SWs
+       SWs[np.where((np.isnan(SWs)) | (np.isinf(SWs)) |
                  (SWs > 100.0) | (SWs < 0.0))] = 0.0
-    # read the tropopause pressure
-    if trop == True:
-        tropopause = _read_group_nc(
-            fname, ['support_data'], 'tropopause_pressure').astype('float16')
-    else:
-        tropopause = np.empty((1))
-    # populate sat class
-    tempo_no2 = satellite_amf(vcd, amf, time, tropopause, latitude_center,
+       # read the tropopause pressure
+       if trop == True:
+          tropopause = _read_group_nc(
+             fname, ['support_data'], 'tropopause_pressure').astype('float16')
+       else:
+          tropopause = np.empty((1))
+       # populate sat class
+       tempo_no2 = satellite_amf(vcd, amf, time, tropopause, latitude_center,
                             longitude_center, [], [], uncertainty, quality_flag, p_mid, SWs, [], [], [], [], [])
-    # interpolation
-    if (ctm_models_coordinate is not None):
-        print('Currently interpolating ...')
-        grid_size = 0.05  # degree
-        tempo_no2 = interpolator(
-            4, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
-    # return
-    return tempo_no2
-
+       # interpolation
+       if (ctm_models_coordinate is not None):
+           print('Currently interpolating ...')
+           grid_size = 0.05  # degree
+           tempo_no2 = interpolator(
+              4, grid_size, tempo_no2, ctm_models_coordinate, flag_thresh=0.0)
+       # return
+       return tempo_no2
+    except:
+       return None
 
 def tempo_reader_hcho(fname: str, ctm_models_coordinate=None, read_ak=True) -> satellite_amf:
     '''

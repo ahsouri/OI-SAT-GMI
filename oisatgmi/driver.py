@@ -105,13 +105,13 @@ class oisatgmi(object):
         # populating the averaged vcds with the bias corrected ones
         self.sat_averaged_vcd = sat_averaged_vcd_bias_corrected
 
-    def oi(self, sensor: str, error_ctm=50.0):
+    def oi(self, sensor: str, error_ctm=50.0, regularization=True):
         if sensor != 'GOSAT':
             self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.ctm_averaged_vcd, self.sat_averaged_vcd,
-                        (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
+                        (self.ctm_averaged_vcd*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=regularization)
         else:
             self.ctm_averaged_vcd_corrected, self.ak_OI, self.increment_OI, self.error_OI = OI(self.aux2, self.aux1,
-                        (self.aux2*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=True)
+                        (self.aux2*error_ctm/100.0)**2, self.sat_averaged_error**2, regularization_on=regularization)
     def reporting(self, fname: str, gasname, folder='report'):
 
         # pick the right latitude and longitude

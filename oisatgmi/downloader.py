@@ -263,7 +263,10 @@ class downloader(object):
         for r in bbox_results:
             granule_name = r.data_links()[0].split('/')[-1]
             print(granule_name)
-            files = earthaccess.download(r, local_path=output_fld)
+            try:
+               files = earthaccess.download(r, local_path=output_fld)
+            except:
+               print("later")
 
 
     def download_tempo_L3(self, product_tag: str, output_fld: Path, product_name=None, username=None, password=None):
@@ -589,10 +592,11 @@ class downloader(object):
 # testing
 if __name__ == "__main__":
 
-    dl_obj = downloader(40, 45, -95, -90, '2024-01-01', '2024-01-02')
+    dl_obj = downloader(10, 80, -140, -50, '2023-10-01', '2023-11-01')
     #dl_obj = downloader(-90, 90, -180, 180, '2005-06-01', '2005-07-01')
     #dl_obj.download_tropomi_l2('HCHO', Path('download_bucket/trop_hcho/'))
-    dl_obj.download_tempo_L2('NO2',Path('download_bucket/tempo_no2_l2/'))
+    dl_obj.download_tempo_L2('NO2',Path('download_bucket/tempo_no2_L2/'))
+    dl_obj.download_tempo_L2('HCHO',Path('download_bucket/tempo_hcho_L2/'))
     #dl_obj.download_omi_l2('NO2', Path('download_bucket/omi_no2/'))
     #dl_obj.omi_hcho_cfa( Path('download_bucket/omi_hcho_PO3/'))
     #dl_obj.download_omi_l2('O3', Path('download_bucket/omi_o3/'))
