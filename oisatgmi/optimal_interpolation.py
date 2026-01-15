@@ -11,6 +11,7 @@ def OI(Xa: np.array, Y: np.array, Sa: np.array, So: np.array, regularization_on=
     '''
     print('Optimal interpolation begins...')
     # negative values are not meaninful from the CTM perspective so:
+    Y = Y.copy()
     Y[Y < 0] = 0.0
     if regularization_on == True:
         scaling_factors = np.arange(0.1, 10, 0.1)

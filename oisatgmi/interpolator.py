@@ -25,12 +25,18 @@ def _interpolosis(interpol_func, Z: np.array, X: np.array, Y: np.array, interpol
         ZZ = interpolator(XX)
         ZZ = ZZ.reshape(np.shape(X))
         ZZ[dists > threshold*2.0] = np.nan
-    elif interpolator_type == 4:
-        target_points = np.column_stack((X.ravel(), Y.ravel()))
-        dist, idx = interpol_func.query(target_points)  # find nearest neighbor indices
-        Z = Z.ravel()
-        ZZ = Z[idx].reshape(X.shape)
-        ZZ[dists > threshold*2.0] = np.nan
+    elif interpolator_type == 4: #use only for TEMPO
+        Xf = X.ravel()
+        Yf = Y.ravel()
+        Zf = Z.ravel()
+        mask = (Xf >= -135) & (Yf >= 18)
+        ZZ = np.full(Xf.shape, np.nan)
+        target_points = np.column_stack((Xf[mask], Yf[mask]))
+        dist, idx = interpol_func.query(target_points)
+        ZZ[mask] = Zf[idx]
+        bad = dist > threshold
+        ZZ[np.where(mask)[0][bad]] = np.nan
+        ZZ = ZZ.reshape(X.shape)
     else:
         raise Exception(
             "other type of interpolation methods has not been implemented yet")
@@ -186,7 +192,6 @@ def interpolator(interpolator_type: int, grid_size: float, sat_data, ctm_models_
         tri, sat_data.uncertainty**2*mask, lons_grid, lats_grid, interpolator_type, dists, grid_size),
         ctm_models_coordinate, grid_size, threshold_ctm, error=True)
     uncertainty = np.sqrt(uncertainty)
-
     # interpolate 3Ds fields for two-step retrievals (scattering weights, for example OMI NO2)
     if isinstance(sat_data, satellite_amf):
         if np.size(sat_data.scattering_weights) != 1:

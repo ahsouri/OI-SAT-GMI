@@ -8,18 +8,18 @@ debug: False
 save_daily: False
 
 # number of jobs
-num_job: 24
+num_job: 36
 
 # set the name of CTM model (GMI)
-ctm_name: 'FREE'
+ctm_name: 'CMAQ'
 
 # set the path of CTM netcdf files (either relative or absolute)
 ctm_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/cmaq_subset/'
-
+#ctm_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/cmaq_test/'
 # set the path of mcip netcdf files in case ctm_name = CMAQ (either relative or absolute)
 mcip_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/cmaq_subset/'
-
-# the frequency of CTM files (3-hourly, hourly)
+#mcip_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/cmaq_test/'
+# the frequency of CTM files (3-hourly)
 ctm_freq: 'hourly'
 
 # should we average CTMs? (reduce memory overhead by a lot)
@@ -29,29 +29,29 @@ ctm_avg: False
 ctm_error: 50.0
 
 # target gas (NO2, HCHO)
-gas: 'NO2'
+gas: 'HCHO'
 
 # the sensor name (OMI, TROPOMI, OMPS)
 sensor: 'TEMPO'
 
 # consider scattering weights (or AKs) (memory intensive)
-read_AK: False
+read_AK: True
 
 # total column or tropospheric column (only applicable for NO2)
 troposphere_only: True
 
 # set the path of L2 files
-sat_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/tempo_no2_L2/'
+sat_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/tempo_hcho_L2/'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2023-09'
-end_date:   '2023-09'
+start_date: '2024-06'
+end_date:   '2024-06'
 
 # output folder for PDF reports
-output_pdf_dir: './report_test_tempo'
+output_pdf_dir: './report_test_cmaq_nei22'
 
 # output folder for NC diags
-output_nc_dir: './diag_test_tempo'
+output_nc_dir: './diag_test_cmaq_nei22'
 
 
 

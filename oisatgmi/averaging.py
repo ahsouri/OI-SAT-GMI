@@ -59,6 +59,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
 
     sat_averaged_error = np.zeros_like(sat_averaged_vcd)*np.nan
     ctm_averaged_vcd = np.zeros_like(sat_averaged_vcd)*np.nan
+    mask_sat = []
     sat_aux1 = np.zeros_like(sat_averaged_vcd)*np.nan
     sat_aux2 = np.zeros_like(sat_averaged_vcd)*np.nan
     for year in range(np.min(list_years), np.max(list_years)+1):
@@ -79,6 +80,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
                     sat_chosen_vcd.append(sat_data.vcd)
                     sat_chosen_error.append(sat_data.uncertainty)
                     ctm_chosen_vcd.append(sat_data.ctm_vcd)
+                    mask_sat.append(~np.isnan(sat_data.vcd))
                     if isinstance(sat_data, satellite_amf):
                         sat_chosen_aux1.append(sat_data.new_amf)
                         sat_chosen_aux2.append(sat_data.old_amf)
@@ -116,5 +118,5 @@ def averaging(startdate: str, enddate: str, reader_obj):
     timestamps = [dt.timestamp() for dt in time_chosen]
     avg_timestamp = sum(timestamps) / len(timestamps)
     avg_datetime = datetime.datetime.fromtimestamp(avg_timestamp)
-    print(avg_datetime)
-    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_aux1, sat_aux2, avg_datetime
+
+    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_aux1, sat_aux2, avg_datetime, time_chosen, mask_sat

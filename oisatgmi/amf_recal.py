@@ -2,7 +2,7 @@ import numpy as np
 from scipy import interpolate
 from scipy.spatial import Delaunay
 from oisatgmi.interpolator import _upscaler
-
+from joblib import Parallel, delayed
 
 def _flatten_time(time_obj):
     """Convert datetime object to float representation."""
@@ -100,13 +100,19 @@ def _vertical_interp_and_amf(L2_granule, ctm_mid_pressure, ctm_partial_column):
                 continue
             ctm_partial_column_tmp = ctm_partial_column[:, i, j]
             ctm_mid_pressure_tmp = ctm_mid_pressure[:, i, j]
+            press = L2_granule.pressure_mid[:, i, j].astype(float)
+            sw    = L2_granule.scattering_weights[:, i, j].astype(float)
+            mask = np.isfinite(press) & np.isfinite(sw) & (press > 0)
+            press = press[mask]
+            sw    = sw[mask]
             # Interpolate scattering weights to CTM vertical grid (log pressure)
             f = interpolate.interp1d(
-                np.log(L2_granule.pressure_mid[:, i, j].squeeze()),
-                L2_granule.scattering_weights[:, i, j].squeeze(), fill_value="extrapolate"
+                np.log(press),
+                sw, fill_value="extrapolate"
             )
             interpolated_SW = f(np.log(ctm_mid_pressure_tmp))
             interpolated_SW[np.isinf(interpolated_SW)] = 0.0
+            interpolated_SW[np.isnan(interpolated_SW)] = 0.0
             # Mask below tropopause if needed
             if np.size(L2_granule.tropopause) != 1:
                 mask = ctm_mid_pressure_tmp < L2_granule.tropopause[i, j]
@@ -118,7 +124,59 @@ def _vertical_interp_and_amf(L2_granule, ctm_mid_pressure, ctm_partial_column):
             new_amf[i, j] = model_AMF
     return new_amf, model_VCD
 
-def amf_recal(ctm_data: list, sat_data: list):
+def _process_single_granule(idx, L2_granule, ctm_data, time_ctm, time_ctm_hour_only, time_ctm_datetype, tri):
+    """Worker to process a single L2 granule. Returns (idx, updated_granule)."""
+    if L2_granule is None:
+        return idx, L2_granule
+
+    # Compute satellite times
+    time_sat_datetime = L2_granule.time
+    time_sat = _flatten_time(time_sat_datetime)
+    time_sat_hour_only = _hour_only_time(time_sat_datetime)
+
+    # Find closest CTM time
+    closest_index, closest_index_day, closest_index_hour = _find_closest_indices(
+        time_sat, time_sat_hour_only, ctm_data, time_ctm, time_ctm_hour_only
+    )
+    print(f"The closest GMI file used for the L2 at {L2_granule.time} is at {time_ctm_datetype[closest_index_day][closest_index_hour]}")
+    # Extract CTM fields
+    ctm_mid_pressure, ctm_profile, ctm_deltap = _get_ctm_fields(ctm_data, closest_index_day, closest_index_hour)
+    ctm_partial_column = _calculate_ctm_partial_column(ctm_deltap, ctm_profile)
+    # Upscale if needed
+    if L2_granule.ctm_upscaled_needed == True:
+        print("Upscaling of the model is needed.")
+        ctm_mid_pressure, ctm_partial_column = _upscale_ctm_fields(
+            ctm_mid_pressure, ctm_profile, ctm_deltap, ctm_data, L2_granule, tri
+        )
+    # Vertical grid interpolation and AMF recalculation
+    if np.size(L2_granule.scattering_weights) == 1:
+        print('No scattering weights found, recalculation is not possible..just grabbing VCDs')
+        if np.size(L2_granule.tropopause) != 1:
+            ctm_partial_column = _apply_tropopause_mask(ctm_partial_column, ctm_mid_pressure, L2_granule.tropopause)
+        # Calculate model VCD
+        model_VCD = np.nansum(ctm_partial_column, axis=0)
+        model_VCD[np.isnan(L2_granule.vcd)] = np.nan
+        L2_granule.ctm_vcd = model_VCD
+        L2_granule.ctm_time_at_sat = time_ctm[closest_index]
+        L2_granule.old_amf = np.empty((1))
+        L2_granule.new_amf = np.empty((1))
+        return idx, L2_granule
+    # AMF recalculation
+    new_amf, model_VCD = _vertical_interp_and_amf(L2_granule, ctm_mid_pressure, ctm_partial_column)
+    # Update satellite data object
+    L2_granule.old_amf = getattr(L2_granule, 'amf', None)
+    new_amf[np.isnan(L2_granule.vcd)] = np.nan
+    L2_granule.new_amf = new_amf
+    # VCD correction
+    L2_granule.vcd = (L2_granule.amf * L2_granule.vcd) / new_amf
+    model_VCD[np.isnan(L2_granule.vcd)] = np.nan
+    model_VCD[np.isinf(L2_granule.vcd)] = np.nan
+    L2_granule.ctm_vcd = model_VCD
+    L2_granule.ctm_time_at_sat = time_ctm[closest_index]
+
+    return idx, L2_granule
+
+def amf_recal(ctm_data: list, sat_data: list, num_job=1):
     print('AMF Recal begins...')
     # Flatten CTM times
     time_ctm, time_ctm_hour_only, time_ctm_datetype = [], [], []
@@ -132,54 +190,17 @@ def amf_recal(ctm_data: list, sat_data: list):
     # Create triangulation for upscaling
     lon_flat = ctm_data[0].longitude.flatten()
     lat_flat = ctm_data[0].latitude.flatten()
-    #tri = Delaunay(np.column_stack((lon_flat, lat_flat)))
     tri = None # upscaling is now done using cKDtree method
     # Main satellite loop
-    for counter, L2_granule in enumerate(sat_data):
-        if L2_granule is None:
-            continue
-        # Compute satellite times
-        time_sat_datetime = L2_granule.time
-        time_sat = _flatten_time(time_sat_datetime)
-        time_sat_hour_only = _hour_only_time(time_sat_datetime)
-        # Find closest CTM time
-        closest_index, closest_index_day, closest_index_hour = _find_closest_indices(
-            time_sat, time_sat_hour_only, ctm_data, time_ctm, time_ctm_hour_only
-        )
-        print(f"The closest GMI file used for the L2 at {L2_granule.time} is at {time_ctm_datetype[closest_index_day][closest_index_hour]}")
-        # Extract CTM fields
-        ctm_mid_pressure, ctm_profile, ctm_deltap = _get_ctm_fields(ctm_data, closest_index_day, closest_index_hour)
-        ctm_partial_column = _calculate_ctm_partial_column(ctm_deltap, ctm_profile)
-        # Upscale if needed
-        if L2_granule.ctm_upscaled_needed == True:
-            print("Upscaling of the model is needed.")
-            ctm_mid_pressure, ctm_partial_column = _upscale_ctm_fields(
-                ctm_mid_pressure, ctm_profile, ctm_deltap, ctm_data, L2_granule, tri
-            )
-        # Vertical grid interpolation and AMF recalculation
-        if np.size(L2_granule.scattering_weights) == 1:
-            print('No scattering weights found, recalculation is not possible..just grabbing VCDs')
-            if np.size(L2_granule.tropopause) != 1:
-                ctm_partial_column = _apply_tropopause_mask(ctm_partial_column, ctm_mid_pressure, L2_granule.tropopause)
-            # Calculate model VCD
-            model_VCD = np.nansum(ctm_partial_column, axis=0)
-            model_VCD[np.isnan(L2_granule.vcd)] = np.nan
-            L2_granule.ctm_vcd = model_VCD
-            L2_granule.ctm_time_at_sat = time_ctm[closest_index]
-            L2_granule.old_amf = np.empty((1))
-            L2_granule.new_amf = np.empty((1))
-            continue
-        # AMF recalculation
-        new_amf, model_VCD = _vertical_interp_and_amf(L2_granule, ctm_mid_pressure, ctm_partial_column)
-        # Update satellite data object
-        L2_granule.old_amf = getattr(L2_granule, 'amf', None)
-        new_amf[np.isnan(L2_granule.vcd)] = np.nan
-        L2_granule.new_amf = new_amf
-        # VCD correction
-        L2_granule.vcd = (L2_granule.amf * L2_granule.vcd) / new_amf
-        model_VCD[np.isnan(L2_granule.vcd)] = np.nan
-        model_VCD[np.isinf(L2_granule.vcd)] = np.nan
-        L2_granule.ctm_vcd = model_VCD
-        L2_granule.ctm_time_at_sat = time_ctm[closest_index]
+    # Process L2 granules in parallel using joblib
+    # preserve order and None entries
+    processed = Parallel(n_jobs=num_job)(
+       delayed(_process_single_granule)(
+          idx, L2_granule, ctm_data, time_ctm, time_ctm_hour_only, time_ctm_datetype, tri
+          ) for idx, L2_granule in enumerate(sat_data))
+
+    # Write results back into sat_data preserving original indices
+    for idx, updated_granule in processed:
+        sat_data[idx] = updated_granule
 
     return sat_data

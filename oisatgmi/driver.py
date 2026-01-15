@@ -33,10 +33,10 @@ class oisatgmi(object):
         self.gasname = ctm_gas_name[0]
         reader_obj = []
 
-    def recal_amf(self):
+    def recal_amf(self, num_job=1):
 
         self.reader_obj.sat_data = amf_recal(
-            self.reader_obj.ctm_data, self.reader_obj.sat_data)
+            self.reader_obj.ctm_data, self.reader_obj.sat_data, num_job=num_job)
 
     def cal_pwv(self):
 
@@ -57,7 +57,7 @@ class oisatgmi(object):
                 startdate [str]: starting date in YYYY-mm-dd format string
                 enddate [str]: ending date in YYYY-mm-dd format string  
         '''
-        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.aux1, self.aux2, self.avg_time = averaging(
+        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.aux1, self.aux2, self.avg_time, self.time_list, self.mask_sat = averaging(
             startdate, enddate, self.reader_obj)
         if gasname == 'O3':
             self.ctm_averaged_vcd = self.ctm_averaged_vcd/(2.69e16*1e-15)
@@ -171,11 +171,29 @@ class oisatgmi(object):
         # create the x and y dimensions.
         ncfile.createDimension('x', np.shape(self.sat_averaged_vcd)[0])
         ncfile.createDimension('y', np.shape(self.sat_averaged_vcd)[1])
-        ncfile.createDimension('t', None)
+        ncfile.createDimension('t1', None)
+        ncfile.createDimension('t2', None)
 
-        data1n = ncfile.createVariable('time', 'S1', ('t'))
+        data1n = ncfile.createVariable('averaged_time', 'S1', ('t1'))
         time_string = self.avg_time.strftime("%Y-%m-%d %H:%M:%S")
         data1n[:] = np.array(list(time_string), 'S1')
+
+        time_strings = [t.strftime("%Y-%m-%d %H:%M:%S") for t in self.time_list]
+        max_len = max(len(s) for s in time_strings)
+        ncfile.createDimension("n_times", len(time_strings))
+        ncfile.createDimension("str_len", max_len)
+        padded = np.array([list(s.ljust(max_len)) for s in time_strings], dtype="S1")
+        data2n = ncfile.createVariable("time_granules", "S1", ("n_times", "str_len"))
+        data2n[:] = padded
+
+        data3n = ncfile.createVariable(
+            'mask_satellite', dtype('float32').char, ('t2','x', 'y'))
+        data3n[:, :, :] = np.array(self.mask_sat)
+
+        data4n = ncfile.createVariable(
+            'freq_satellite', dtype('float32').char, ('x', 'y'))
+        data4n[:, :] = np.nansum(np.array(self.mask_sat),axis=0)
+
 
         data1 = ncfile.createVariable(
             'sat_averaged_vcd', dtype('float32').char, ('x', 'y'))

@@ -31,16 +31,17 @@ save_daily = ctrl_opts['save_daily']
 
 year = int(sys.argv[1])
 month = int(sys.argv[2])
+if sensor == "TEMPO":
+   hour = int(sys.argv[3])
 
 # if TEMPO is selected
 if sensor == "TEMPO":
-   for hour in range(0,24):
        try:
          oisatgmi_obj = oisatgmi()
          oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
                        Path(sat_dir), str(year) + f"{month:02}", averaging=ctm_avg, read_ak=read_AK,
                        trop=troposphere_only, num_job=int(num_job), mcip_dir=Path(mcip_dir), tempo_hour=hour)
-         oisatgmi_obj.recal_amf()
+         oisatgmi_obj.recal_amf(num_job=int(num_job))
          if save_daily:
             oisatgmi_obj.savedaily('./diag_mat/', gas,
                            str(year) + f"{month:02}" + '_' + str(hour) + 'UTC')
@@ -51,12 +52,12 @@ if sensor == "TEMPO":
             oisatgmi_obj.average(
               str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01', gasname=gas)
          oisatgmi_obj.bias_correct(sensor,gas)
-         oisatgmi_obj.oi(sensor, error_ctm=error_ctm)
-         oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}" + '_' + str(hour) + 'UTC', gas, output_pdf_dir)
-         oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}" + '_' + str(hour) + 'UTC', output_nc_dir)
+         oisatgmi_obj.oi(sensor, error_ctm=error_ctm, regularization=False)
+         oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}_{hour:02}_" + 'UTC', gas, output_pdf_dir)
+         oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}_{hour:02}_" + 'UTC', output_nc_dir)
        except Exception as e:
          print(f"Error processing hour {hour}: {e}")
-   exit() # we should skip the rest
+       exit() # we should skip the rest
 
 oisatgmi_obj = oisatgmi()
 oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
