@@ -59,12 +59,14 @@ def averaging(startdate: str, enddate: str, reader_obj):
 
     sat_averaged_error = np.zeros_like(sat_averaged_vcd)*np.nan
     ctm_averaged_vcd = np.zeros_like(sat_averaged_vcd)*np.nan
+    sat_tropopause = np.zeros_like(sat_averaged_vcd)*np.nan
     mask_sat = []
     sat_aux1 = np.zeros_like(sat_averaged_vcd)*np.nan
     sat_aux2 = np.zeros_like(sat_averaged_vcd)*np.nan
     for year in range(np.min(list_years), np.max(list_years)+1):
         for month in range(np.min(list_months), np.max(list_months)+1):
             sat_chosen_vcd = []
+            sat_chosen_tropp = []
             sat_chosen_aux1 = []
             sat_chosen_aux2 = []
             sat_chosen_error = []
@@ -78,6 +80,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
                 if ((time_sat.year == year) and (time_sat.month == month)):
                     time_chosen.append(time_sat)
                     sat_chosen_vcd.append(sat_data.vcd)
+                    sat_chosen_tropp.append(sat_data.tropopause)
                     sat_chosen_error.append(sat_data.uncertainty)
                     ctm_chosen_vcd.append(sat_data.ctm_vcd)
                     mask_sat.append(~np.isnan(sat_data.vcd))
@@ -92,6 +95,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
                         sat_chosen_aux2.append(np.nan*sat_data.vcd)
             sat_chosen_vcd = np.array(sat_chosen_vcd)
             sat_chosen_vcd[np.isinf(sat_chosen_vcd)] = np.nan
+            sat_chosen_tropp = np.array(sat_chosen_tropp)
             sat_chosen_error = np.array(sat_chosen_error)
             ctm_chosen_vcd = np.array(ctm_chosen_vcd)
             sat_chosen_aux1 = np.array(sat_chosen_aux1)
@@ -99,6 +103,8 @@ def averaging(startdate: str, enddate: str, reader_obj):
         if np.size(sat_chosen_vcd) != 0:
             sat_averaged_vcd[:, :, month - min(list_months), year - min(
                 list_years)] = np.squeeze(np.nanmean(sat_chosen_vcd, axis=0))
+            sat_tropopause[:, :, month - min(list_months), year - min(
+                list_years)] = np.squeeze(np.nanmean(sat_chosen_tropp, axis=0))
             sat_averaged_error[:, :, month - min(list_months), year - min(
                 list_years)] = error_averager(sat_chosen_error**2)
             ctm_averaged_vcd[:, :, month - min(list_months), year - min(
@@ -110,6 +116,7 @@ def averaging(startdate: str, enddate: str, reader_obj):
                     list_years)] = np.squeeze(np.nanmean(sat_chosen_aux2, axis=0))
     # squeeze it
     sat_averaged_vcd = sat_averaged_vcd.squeeze()
+    sat_tropopause = sat_tropopause.squeeze()
     sat_averaged_error = sat_averaged_error.squeeze()
     ctm_averaged_vcd = ctm_averaged_vcd.squeeze()
     sat_aux1 = sat_aux1.squeeze()
@@ -119,4 +126,4 @@ def averaging(startdate: str, enddate: str, reader_obj):
     avg_timestamp = sum(timestamps) / len(timestamps)
     avg_datetime = datetime.datetime.fromtimestamp(avg_timestamp)
 
-    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_aux1, sat_aux2, avg_datetime, time_chosen, mask_sat
+    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_aux1, sat_aux2, avg_datetime, time_chosen, mask_sat, sat_tropopause

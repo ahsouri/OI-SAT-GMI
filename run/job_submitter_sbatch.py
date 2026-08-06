@@ -46,23 +46,47 @@ for year in range(np.min(list_years), np.max(list_years)+1):
     for month in range(np.min(list_months), np.max(list_months)+1):
         # slurm command
         # Opening a file
-        file = open('./jobs/' + 'job_' + str(year) +
-                    '_' + str(month) + '.j', 'w')
-        slurm_cmd = '#!/bin/bash \n'
-        slurm_cmd += '#SBATCH -J oi_gmi  \n'
-        slurm_cmd += '#SBATCH --no-requeue  \n'
-        slurm_cmd += '#SBATCH --account=s1043 \n'
-        slurm_cmd += '#SBATCH --ntasks=1 \n'
-        slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
-        slurm_cmd += '#SBATCH --mem=170G \n'
-        if debug_on:
-            slurm_cmd += '#SBATCH --qos=debug \n'
+        if ctrl_opts['sensor'] == 'TEMPO':
+           for hour in range(0,24):
+               file = open('./jobs/' + 'job_' + str(year) +
+                    '_' + str(month) + '_' +  str(hour) + '.j', 'w')
+               slurm_cmd = '#!/bin/bash \n'
+               slurm_cmd += '#SBATCH -J oisatgmi \n'
+               slurm_cmd += '#SBATCH --account=s3223 \n'
+               slurm_cmd += '#SBATCH --no-requeue  \n'
+               slurm_cmd += '#SBATCH --ntasks=1 \n'
+               slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
+               slurm_cmd += '#SBATCH --mem=180G \n'
+               slurm_cmd += '#SBATCH --qos=long \n'
+               if debug_on:
+                  slurm_cmd += '#SBATCH --qos=debug \n'
+               else:
+                  slurm_cmd += '#SBATCH -t 24:00:00 \n'
+               slurm_cmd += '#SBATCH -o oisatgmi-%j.out \n'
+               slurm_cmd += '#SBATCH -e oisatgmi-%j.err \n'
+               slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month) + ' ' + str(hour)
+               file.writelines(slurm_cmd)
+               file.close()
+               os.system('sbatch ' + './jobs/' + 'job_' + str(year) +
+                    '_' + str(month) + '_' +  str(hour) + '.j')
         else:
-            slurm_cmd += '#SBATCH -t 12:00:00 \n'
-        slurm_cmd += '#SBATCH -o oi_gmi-%j.out \n'
-        slurm_cmd += '#SBATCH -e oi_gmi-%j.err \n'
-        slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month)
-        file.writelines(slurm_cmd)
-        file.close()
-        os.system('sbatch ' + './jobs/' + 'job_' + str(year) +
+              file = open('./jobs/' + 'job_' + str(year) +
+                    '_' + str(month) + '.j', 'w')
+              slurm_cmd = '#!/bin/bash \n'
+              slurm_cmd += '#SBATCH -J oi_gmi  \n'
+              slurm_cmd += '#SBATCH --no-requeue  \n'
+              slurm_cmd += '#SBATCH --account=s1043 \n'
+              slurm_cmd += '#SBATCH --ntasks=1 \n'
+              slurm_cmd += '#SBATCH --cpus-per-task=' + str(int(num_job)) + ' \n'
+              slurm_cmd += '#SBATCH --mem=170G \n'
+              if debug_on:
+                 slurm_cmd += '#SBATCH --qos=debug \n'
+              else:
+                 slurm_cmd += '#SBATCH -t 4:00:00 \n'
+              slurm_cmd += '#SBATCH -o oi_gmi-%j.out \n'
+              slurm_cmd += '#SBATCH -e oi_gmi-%j.err \n'
+              slurm_cmd += python_bin + ' ./job.py ' + str(year) + ' ' + str(month)
+              file.writelines(slurm_cmd)
+              file.close()
+              os.system('sbatch ' + './jobs/' + 'job_' + str(year) +
                     '_' + str(month) + '.j')

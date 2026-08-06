@@ -57,7 +57,7 @@ class oisatgmi(object):
                 startdate [str]: starting date in YYYY-mm-dd format string
                 enddate [str]: ending date in YYYY-mm-dd format string  
         '''
-        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.aux1, self.aux2, self.avg_time, self.time_list, self.mask_sat = averaging(
+        self.sat_averaged_vcd, self.sat_averaged_error, self.ctm_averaged_vcd, self.aux1, self.aux2, self.avg_time, self.time_list, self.mask_sat, self.tropp = averaging(
             startdate, enddate, self.reader_obj)
         if gasname == 'O3':
             self.ctm_averaged_vcd = self.ctm_averaged_vcd/(2.69e16*1e-15)
@@ -194,6 +194,9 @@ class oisatgmi(object):
             'freq_satellite', dtype('float32').char, ('x', 'y'))
         data4n[:, :] = np.nansum(np.array(self.mask_sat),axis=0)
 
+        data5n = ncfile.createVariable(
+            'tropopause', dtype('float32').char, ('x', 'y'))
+        data5n[:, :] = self.tropp
 
         data1 = ncfile.createVariable(
             'sat_averaged_vcd', dtype('float32').char, ('x', 'y'))
