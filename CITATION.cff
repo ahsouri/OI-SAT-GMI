@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: "If you use OI-SAT-GMI in your research, please cite this software."
+title: "OI-SAT-GMI"
+type: software
+authors:
+  - family-names: "Souri"
+    given-names: "Amir H."
+    email: "ahsouri@gmail.com"
+version: "0.1.0"
+doi: "10.5281/zenodo.10520136"
+repository-code: "https://github.com/ahsouri/OI-SAT-GMI"
+url: "https://github.com/ahsouri/OI-SAT-GMI"
+license: "MIT"
+abstract: >-
+  OI-SAT-GMI is an open-source Python package for processing satellite
+  observations and performing optimal interpolation with NASA GMI model
+  fields. It supports satellite Level-2 data processing, air mass factor
+  recalculation, mass-conserving interpolation, and Bayesian data fusion
+  through optimal interpolation.
+keywords:
+  - "atmospheric chemistry"
+  - "satellite remote sensing"
+  - "optimal interpolation"
+  - "data fusion"
+  - "air mass factor"
+  - "NASA GMI"
+  - "Python"
+
+references:
+  - type: article
+    authors:
+      - family-names: "Souri"
+        given-names: "Amir H."
+      - family-names: "Duncan"
+        given-names: "Bryan N."
+      - family-names: "Strode"
+        given-names: "Sarah A."
+      - family-names: "Anderson"
+        given-names: "Daniel C."
+      - family-names: "Manyin"
+        given-names: "Michael E."
+      - family-names: "Liu"
+        given-names: "Junhua"
+      - family-names: "Oman"
+        given-names: "Luke D."
+      - family-names: "Zhang"
+        given-names: "Zhen"
+      - family-names: "Weir"
+        given-names: "Brad"
+    title: >-
+      Enhancing long-term trend simulation of the global tropospheric hydroxyl
+      (TOH) and its drivers from 2005 to 2019: a synergistic integration of
+      model simulations and satellite observations
+    journal: "Atmospheric Chemistry and Physics"
+    year: 2024
+    volume: 24
+    start: "8677"
+    end: "8701"
+    doi: "10.5194/acp-24-8677-2024"
