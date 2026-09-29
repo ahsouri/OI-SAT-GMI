@@ -28,6 +28,7 @@ output_nc_dir = ctrl_opts['output_nc_dir']
 num_job = ctrl_opts['num_job']
 error_ctm = ctrl_opts['ctm_error']
 save_daily = ctrl_opts['save_daily']
+split_month = ctrl_opts['split_month']
 
 year = int(sys.argv[1])
 month = int(sys.argv[2])
@@ -36,28 +37,115 @@ if sensor == "TEMPO":
 
 # if TEMPO is selected
 if sensor == "TEMPO":
-       try:
-         oisatgmi_obj = oisatgmi()
-         oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,
-                       Path(sat_dir), str(year) + f"{month:02}", averaging=ctm_avg, read_ak=read_AK,
-                       trop=troposphere_only, num_job=int(num_job), mcip_dir=Path(mcip_dir), tempo_hour=hour)
-         oisatgmi_obj.recal_amf(num_job=int(num_job))
-         if save_daily:
-            oisatgmi_obj.savedaily('./diag_mat/', gas,
-                           str(year) + f"{month:02}" + '_' + str(hour) + 'UTC')
-         if month != 12:
-            oisatgmi_obj.average(str(
-              year) + '-' + f"{month:02}" + '-01', str(year) + '-' + f"{month+1:02}" + '-01', gasname=gas)
-         else:
-            oisatgmi_obj.average(
-              str(year) + '-' + f"{month:02}" + '-01', str(year+1) + '-' + "01" + '-01', gasname=gas)
-         oisatgmi_obj.bias_correct(sensor,gas)
-         oisatgmi_obj.oi(sensor, error_ctm=error_ctm, regularization=False)
-         oisatgmi_obj.reporting(gas + '_' + str(year) + f"{month:02}_{hour:02}_" + 'UTC', gas, output_pdf_dir)
-         oisatgmi_obj.write_to_nc(gas + '_' + str(year) + f"{month:02}_{hour:02}_" + 'UTC', output_nc_dir)
-       except Exception as e:
-         print(f"Error processing hour {hour}: {e}")
-       exit() # we should skip the rest
+   try:
+      oisatgmi_obj = oisatgmi()
+      YYYYMM = str(year) + f"{month:02}"
+      oisatgmi_obj.read_data(
+        ctm_name,
+        Path(ctm_dir),
+        gas,
+        ctm_freq,
+        sensor + '_' + gas,
+        Path(sat_dir),
+        YYYYMM,
+        averaging=ctm_avg,
+        read_ak=read_AK,
+        trop=troposphere_only,
+        num_job=int(num_job),
+        mcip_dir=Path(mcip_dir),
+        tempo_hour=hour
+      )
+      oisatgmi_obj.recal_amf(num_job=int(num_job))
+      if save_daily:
+         oisatgmi_obj.savedaily(
+            './diag_mat/',
+            gas,
+            YYYYMM + '_' + str(hour) + 'UTC'
+         )
+      # ---------------------------------------------------------
+      # Define beginning of next month
+      # ---------------------------------------------------------
+      if month != 12:
+         next_year = year
+         next_month = month + 1
+      else:
+         next_year = year + 1
+         next_month = 1
+
+      next_month_date = (
+        str(next_year) + '-' +
+        f"{next_month:02}" + '-01'
+      )
+      # =========================================================
+      # SPLIT-MONTH MODE
+      # =========================================================
+      if split_month:
+         periods = [
+            (
+                str(year) + '-' + f"{month:02}" + '-01',
+                str(year) + '-' + f"{month:02}" + '-16',
+                YYYYMM + '1'
+            ),
+            (
+                str(year) + '-' + f"{month:02}" + '-16',
+                next_month_date,
+                YYYYMM + '2'
+            )
+         ]
+      # =========================================================
+      # NORMAL FULL-MONTH MODE
+      # =========================================================
+      else:
+         periods = [
+            (
+                str(year) + '-' + f"{month:02}" + '-01',
+                next_month_date,
+                YYYYMM
+            )
+         ]
+      # ---------------------------------------------------------
+      # Process each averaging period
+      # ---------------------------------------------------------
+      for start_date, end_date, period_name in periods:
+
+         print(
+            f"Processing averaging period: "
+            f"{start_date} to {end_date} "
+            f"as {period_name}"
+         )
+         oisatgmi_obj.average(
+            start_date,
+            end_date,
+            gasname=gas
+         )
+         oisatgmi_obj.bias_correct(
+            sensor,
+            gas
+         )
+         oisatgmi_obj.oi(
+            sensor,
+            error_ctm=error_ctm,
+            regularization=False
+         )
+         output_name = (
+            gas + '_' +
+            period_name + '_' +
+            f"{hour:02}" + '_UTC'
+         )
+         oisatgmi_obj.reporting(
+            output_name,
+            gas,
+            output_pdf_dir
+         )
+
+         oisatgmi_obj.write_to_nc(
+            output_name,
+            output_nc_dir
+         )
+
+   except Exception as e:
+     print(f"Error processing hour {hour}: {e}")
+   exit() # we should skip the rest
 
 oisatgmi_obj = oisatgmi()
 oisatgmi_obj.read_data(ctm_name, Path(ctm_dir), gas, ctm_freq, sensor+'_'+gas,

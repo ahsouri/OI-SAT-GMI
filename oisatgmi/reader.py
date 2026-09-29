@@ -155,7 +155,6 @@ def regrid_vertical_logp(p72, w72, nout=36):
 
     return w36, np.broadcast_to(np.exp(logp36[:,None,None]), (nout,ni,nj))
 
-
 def GMI_reader(product_dir: str, YYYYMM: str, gas_to_be_saved: str, frequency_opt='3-hourly', num_job=1) -> list:
     '''
        GMI reader

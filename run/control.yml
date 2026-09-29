@@ -29,7 +29,7 @@ ctm_avg: False
 ctm_error: 50.0
 
 # target gas (NO2, HCHO)
-gas: 'HCHO'
+gas: 'NO2'
 
 # the sensor name (OMI, TROPOMI, OMPS)
 sensor: 'TEMPO'
@@ -41,17 +41,20 @@ read_AK: True
 troposphere_only: True
 
 # set the path of L2 files
-sat_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/tempo_hcho_L2/'
+sat_dir: '/discover/nobackup/asouri/GITS/OI-SAT-GMI/oisatgmi/download_bucket/tempo_no2_L2/'
 
 # starting date (YYYY-MM) and ending date (YYYY-MM) (the end point will be considered)
-start_date: '2024-06'
-end_date:   '2024-06'
+start_date: '2023-11'
+end_date:   '2023-11'
+
+# split the month (False=full month, True=half month)
+split_month: False
 
 # output folder for PDF reports
-output_pdf_dir: './report_test_cmaq_nei22'
+output_pdf_dir: './report_test_cmaq_nei22_no2_V4'
 
 # output folder for NC diags
-output_nc_dir: './diag_test_cmaq_nei22'
+output_nc_dir: './diag_test_cmaq_nei22_no2_V4'
 
 
 

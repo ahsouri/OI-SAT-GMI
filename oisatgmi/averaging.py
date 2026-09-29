@@ -1,129 +1,365 @@
 import numpy as np
 import datetime
-from scipy.io import savemat
-from oisatgmi.config import satellite_amf,satellite_opt
-
-
-def _daterange(start_date, end_date):
-    for n in range(int((end_date - start_date).days)):
-        yield start_date + datetime.timedelta(n)
-
-def error_averager(error_X: np.array):
-    error_Y = np.zeros((np.shape(error_X)[1],np.shape(error_X)[2]))*np.nan
-    for i in range(0,np.shape(error_X)[1]):
-        for j in range(0,np.shape(error_X)[2]):
-            temp = []
-            for k in range(0,np.shape(error_X)[0]):
-                temp.append(error_X[k,i,j])
-            temp = np.array(temp)
-            temp[np.isinf(temp)]=np.nan
-            temp2 = temp[~np.isnan(temp)]
-            error_Y[i,j] = np.sum(temp2)/(np.size(temp2)**2)
-
-    error_Y = np.sqrt(error_Y)
-    return error_Y
+from oisatgmi.config import satellite_amf, satellite_opt
 
 def averaging(startdate: str, enddate: str, reader_obj):
-    '''
-          average the data
-          Input:
-              startdate [str]: starting date in YYYY-mm-dd format string
-              enddate [str]: ending date in YYYY-mm-dd format string
-    '''
-    # convert dates to datetime
-    start_date = datetime.date(int(startdate[0:4]), int(
-        startdate[5:7]), int(startdate[8:10]))
-    end_date = datetime.date(int(enddate[0:4]), int(
-        enddate[5:7]), int(enddate[8:10]))
-    list_days = []
-    list_months = []
-    list_years = []
-    for single_date in _daterange(start_date, end_date):
-        list_days.append(single_date.day)
-        list_months.append(single_date.month)
-        list_years.append(single_date.year)
+    """
+    Average satellite and CTM data over a requested date range.
 
-    list_days = np.array(list_days)
-    list_months = np.array(list_months)
-    list_years = np.array(list_years)
+    The date interval is:
+        startdate <= observation date < enddate
 
-    first_valid_idx = next(i for i, sat_data in enumerate(reader_obj.sat_data)
-                          if sat_data is not None)
+    Therefore:
+        averaging('2023-01-01', '2023-01-16', ...)
+            -> January 1-15
 
-    sat_averaged_vcd = np.zeros((np.shape(reader_obj.sat_data[first_valid_idx].latitude_center)[0],
-                                 np.shape(reader_obj.sat_data[first_valid_idx].latitude_center)[
-        1],
-        len(range(np.min(list_months),
-                  np.max(list_months)+1)),
-        len(range(np.min(list_years), np.max(list_years)+1))))
+        averaging('2023-01-16', '2023-02-01', ...)
+            -> January 16-31
 
-    sat_averaged_error = np.zeros_like(sat_averaged_vcd)*np.nan
-    ctm_averaged_vcd = np.zeros_like(sat_averaged_vcd)*np.nan
-    sat_tropopause = np.zeros_like(sat_averaged_vcd)*np.nan
+    Inputs
+    ------
+    startdate : str
+        Starting date in YYYY-mm-dd format.
+
+    enddate : str
+        Ending date in YYYY-mm-dd format. This date is exclusive.
+
+    reader_obj :
+        OI-SAT-GMI reader object containing satellite data.
+
+    Returns
+    -------
+    sat_averaged_vcd
+    sat_averaged_error
+    ctm_averaged_vcd
+    sat_aux1
+    sat_aux2
+    avg_datetime
+    time_chosen
+    mask_sat
+    sat_tropopause
+    """
+
+    # ---------------------------------------------------------
+    # Parse requested date range
+    # ---------------------------------------------------------
+    start_date = datetime.datetime.strptime(
+        startdate, "%Y-%m-%d"
+    ).date()
+
+    end_date = datetime.datetime.strptime(
+        enddate, "%Y-%m-%d"
+    ).date()
+
+    if end_date <= start_date:
+        raise ValueError(
+            f"enddate ({enddate}) must be later than "
+            f"startdate ({startdate})"
+        )
+
+    # ---------------------------------------------------------
+    # Find satellite granules inside requested period
+    # ---------------------------------------------------------
+    sat_chosen = []
+
+    for sat_data in reader_obj.sat_data:
+
+        if sat_data is None:
+            continue
+
+        time_sat = sat_data.time
+
+        if isinstance(time_sat, datetime.datetime):
+            time_sat_date = time_sat.date()
+        elif isinstance(time_sat, datetime.date):
+            time_sat_date = time_sat
+        else:
+            raise TypeError(
+                "sat_data.time must be datetime.datetime "
+                "or datetime.date"
+            )
+
+        if start_date <= time_sat_date < end_date:
+            sat_chosen.append(sat_data)
+
+    if len(sat_chosen) == 0:
+        raise ValueError(
+            f"No satellite observations found between "
+            f"{startdate} and {enddate}"
+        )
+
+    print(
+        f"Averaging {len(sat_chosen)} satellite granules "
+        f"from {startdate} to {enddate} (end date exclusive)"
+    )
+
+    # ---------------------------------------------------------
+    # Determine output grid
+    # ---------------------------------------------------------
+    grid_shape = np.shape(sat_chosen[0].vcd)
+
+    if len(grid_shape) != 2:
+        raise ValueError(
+            "Expected satellite VCD to be a 2-D field, "
+            f"but found shape {grid_shape}"
+        )
+
+    # ---------------------------------------------------------
+    # Allocate running sums and counts
+    #
+    # This avoids creating large arrays such as:
+    #
+    #     np.array(sat_chosen_vcd)
+    #
+    # containing every granule simultaneously.
+    # ---------------------------------------------------------
+
+    sat_vcd_sum = np.zeros(grid_shape, dtype=np.float64)
+    sat_vcd_count = np.zeros(grid_shape, dtype=np.int32)
+
+    ctm_vcd_sum = np.zeros(grid_shape, dtype=np.float64)
+    ctm_vcd_count = np.zeros(grid_shape, dtype=np.int32)
+
+    tropopause_sum = np.zeros(grid_shape, dtype=np.float64)
+    tropopause_count = np.zeros(grid_shape, dtype=np.int32)
+
+    aux1_sum = np.zeros(grid_shape, dtype=np.float64)
+    aux1_count = np.zeros(grid_shape, dtype=np.int32)
+
+    aux2_sum = np.zeros(grid_shape, dtype=np.float64)
+    aux2_count = np.zeros(grid_shape, dtype=np.int32)
+
+    # For uncertainty of the mean:
+    #
+    # sigma_mean = sqrt(sum(sigma_i^2)) / N
+    #
+    error_variance_sum = np.zeros(grid_shape, dtype=np.float64)
+    error_count = np.zeros(grid_shape, dtype=np.int32)
+
+    time_chosen = []
     mask_sat = []
-    sat_aux1 = np.zeros_like(sat_averaged_vcd)*np.nan
-    sat_aux2 = np.zeros_like(sat_averaged_vcd)*np.nan
-    for year in range(np.min(list_years), np.max(list_years)+1):
-        for month in range(np.min(list_months), np.max(list_months)+1):
-            sat_chosen_vcd = []
-            sat_chosen_tropp = []
-            sat_chosen_aux1 = []
-            sat_chosen_aux2 = []
-            sat_chosen_error = []
-            ctm_chosen_vcd = []
-            time_chosen = []
-            for sat_data in reader_obj.sat_data:
-                if (sat_data is None):
-                    continue
-                time_sat = sat_data.time
-                # see if it falls
-                if ((time_sat.year == year) and (time_sat.month == month)):
-                    time_chosen.append(time_sat)
-                    sat_chosen_vcd.append(sat_data.vcd)
-                    sat_chosen_tropp.append(sat_data.tropopause)
-                    sat_chosen_error.append(sat_data.uncertainty)
-                    ctm_chosen_vcd.append(sat_data.ctm_vcd)
-                    mask_sat.append(~np.isnan(sat_data.vcd))
-                    if isinstance(sat_data, satellite_amf):
-                        sat_chosen_aux1.append(sat_data.new_amf)
-                        sat_chosen_aux2.append(sat_data.old_amf)
-                    elif isinstance(sat_data, satellite_opt):
-                        sat_chosen_aux1.append(sat_data.x_col)
-                        sat_chosen_aux2.append(sat_data.ctm_xcol)
-                    else: # null
-                        sat_chosen_aux1.append(np.nan*sat_data.vcd)
-                        sat_chosen_aux2.append(np.nan*sat_data.vcd)
-            sat_chosen_vcd = np.array(sat_chosen_vcd)
-            sat_chosen_vcd[np.isinf(sat_chosen_vcd)] = np.nan
-            sat_chosen_tropp = np.array(sat_chosen_tropp)
-            sat_chosen_error = np.array(sat_chosen_error)
-            ctm_chosen_vcd = np.array(ctm_chosen_vcd)
-            sat_chosen_aux1 = np.array(sat_chosen_aux1)
-            sat_chosen_aux2 = np.array(sat_chosen_aux2)
-        if np.size(sat_chosen_vcd) != 0:
-            sat_averaged_vcd[:, :, month - min(list_months), year - min(
-                list_years)] = np.squeeze(np.nanmean(sat_chosen_vcd, axis=0))
-            sat_tropopause[:, :, month - min(list_months), year - min(
-                list_years)] = np.squeeze(np.nanmean(sat_chosen_tropp, axis=0))
-            sat_averaged_error[:, :, month - min(list_months), year - min(
-                list_years)] = error_averager(sat_chosen_error**2)
-            ctm_averaged_vcd[:, :, month - min(list_months), year - min(
-                list_years)] = np.squeeze(np.nanmean(ctm_chosen_vcd, axis=0))
-        if np.size(sat_chosen_aux1) != 0:
-            sat_aux1[:, :, month - min(list_months), year - min(
-                    list_years)] = np.squeeze(np.nanmean(sat_chosen_aux1, axis=0))
-            sat_aux2[:, :, month - min(list_months), year - min(
-                    list_years)] = np.squeeze(np.nanmean(sat_chosen_aux2, axis=0))
-    # squeeze it
-    sat_averaged_vcd = sat_averaged_vcd.squeeze()
-    sat_tropopause = sat_tropopause.squeeze()
-    sat_averaged_error = sat_averaged_error.squeeze()
-    ctm_averaged_vcd = ctm_averaged_vcd.squeeze()
-    sat_aux1 = sat_aux1.squeeze()
-    sat_aux2 = sat_aux2.squeeze()
-    # average time
-    timestamps = [dt.timestamp() for dt in time_chosen]
-    avg_timestamp = sum(timestamps) / len(timestamps)
-    avg_datetime = datetime.datetime.fromtimestamp(avg_timestamp)
 
-    return sat_averaged_vcd, sat_averaged_error, ctm_averaged_vcd, sat_aux1, sat_aux2, avg_datetime, time_chosen, mask_sat, sat_tropopause
+    # ---------------------------------------------------------
+    # Small internal helper for accumulating averages
+    # ---------------------------------------------------------
+    def accumulate(field, running_sum, running_count,
+                   required=False, field_name="field"):
+
+        arr = np.asarray(field, dtype=np.float64)
+
+        if arr.shape != grid_shape:
+
+            if required:
+                raise ValueError(
+                    f"{field_name} has shape {arr.shape}, "
+                    f"but expected {grid_shape}"
+                )
+
+            # Optional fields such as tropopause or auxiliary
+            # variables may not exist for all products.
+            return
+
+        valid = np.isfinite(arr)
+
+        running_sum[valid] += arr[valid]
+        running_count[valid] += 1
+
+    # ---------------------------------------------------------
+    # Process each selected granule
+    # ---------------------------------------------------------
+    for sat_data in sat_chosen:
+
+        time_chosen.append(sat_data.time)
+
+        # -------------------------
+        # Satellite VCD
+        # -------------------------
+        sat_vcd = np.asarray(
+            sat_data.vcd,
+            dtype=np.float64
+        )
+
+        if sat_vcd.shape != grid_shape:
+            raise ValueError(
+                f"Satellite VCD has inconsistent shape "
+                f"{sat_vcd.shape}; expected {grid_shape}"
+            )
+
+        valid_sat = np.isfinite(sat_vcd)
+
+        sat_vcd_sum[valid_sat] += sat_vcd[valid_sat]
+        sat_vcd_count[valid_sat] += 1
+
+        # Keep individual masks because driver.write_to_nc()
+        # writes mask_satellite and frequency.
+        mask_sat.append(valid_sat)
+
+        # -------------------------
+        # CTM VCD
+        # -------------------------
+        accumulate(
+            sat_data.ctm_vcd,
+            ctm_vcd_sum,
+            ctm_vcd_count,
+            required=True,
+            field_name="ctm_vcd"
+        )
+
+        # -------------------------
+        # Satellite uncertainty
+        # -------------------------
+        uncertainty = np.asarray(
+            sat_data.uncertainty,
+            dtype=np.float64
+        )
+
+        if uncertainty.shape != grid_shape:
+            raise ValueError(
+                f"Satellite uncertainty has shape "
+                f"{uncertainty.shape}; expected {grid_shape}"
+            )
+
+        valid_error = np.isfinite(uncertainty)
+
+        error_variance_sum[valid_error] += (
+            uncertainty[valid_error] ** 2
+        )
+
+        error_count[valid_error] += 1
+
+        # -------------------------
+        # Tropopause
+        # -------------------------
+        accumulate(
+            sat_data.tropopause,
+            tropopause_sum,
+            tropopause_count
+        )
+
+        # -------------------------
+        # Auxiliary quantities
+        # -------------------------
+        if isinstance(sat_data, satellite_amf):
+
+            accumulate(
+                sat_data.new_amf,
+                aux1_sum,
+                aux1_count
+            )
+
+            accumulate(
+                sat_data.old_amf,
+                aux2_sum,
+                aux2_count
+            )
+
+        elif isinstance(sat_data, satellite_opt):
+
+            accumulate(
+                sat_data.x_col,
+                aux1_sum,
+                aux1_count
+            )
+
+            accumulate(
+                sat_data.ctm_xcol,
+                aux2_sum,
+                aux2_count
+            )
+
+    # ---------------------------------------------------------
+    # Convert sums to averages
+    # ---------------------------------------------------------
+    def finalize_average(running_sum, running_count):
+
+        output = np.full(
+            grid_shape,
+            np.nan,
+            dtype=np.float64
+        )
+
+        valid = running_count > 0
+
+        output[valid] = (
+            running_sum[valid] /
+            running_count[valid]
+        )
+
+        return output
+
+    sat_averaged_vcd = finalize_average(
+        sat_vcd_sum,
+        sat_vcd_count
+    )
+
+    ctm_averaged_vcd = finalize_average(
+        ctm_vcd_sum,
+        ctm_vcd_count
+    )
+
+    sat_tropopause = finalize_average(
+        tropopause_sum,
+        tropopause_count
+    )
+
+    sat_aux1 = finalize_average(
+        aux1_sum,
+        aux1_count
+    )
+
+    sat_aux2 = finalize_average(
+        aux2_sum,
+        aux2_count
+    )
+
+    # ---------------------------------------------------------
+    # Uncertainty of averaged satellite field
+    #
+    # Equivalent to the original:
+    #
+    # sqrt(sum(sigma_i^2) / N^2)
+    # ---------------------------------------------------------
+    sat_averaged_error = np.full(
+        grid_shape,
+        np.nan,
+        dtype=np.float64
+    )
+
+    valid_error = error_count > 0
+
+    sat_averaged_error[valid_error] = (
+        np.sqrt(error_variance_sum[valid_error]) /
+        error_count[valid_error]
+    )
+
+    # ---------------------------------------------------------
+    # Mean observation time
+    #
+    # Avoid datetime.timestamp()/fromtimestamp() because those
+    # can depend on the machine's local timezone.
+    # ---------------------------------------------------------
+    reference_time = time_chosen[0]
+
+    time_offsets = np.array([
+        (t - reference_time).total_seconds()
+        for t in time_chosen
+    ])
+
+    avg_datetime = (
+        reference_time +
+        datetime.timedelta(
+            seconds=float(np.mean(time_offsets))
+        )
+    )
+
+    return (
+        sat_averaged_vcd,
+        sat_averaged_error,
+        ctm_averaged_vcd,
+        sat_aux1,
+        sat_aux2,
+        avg_datetime,
+        time_chosen,
+        mask_sat,
+        sat_tropopause
+    )
